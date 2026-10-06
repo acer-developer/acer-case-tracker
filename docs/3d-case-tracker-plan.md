@@ -15,6 +15,7 @@ Inspired by the "WareTrack" 3D warehouse demo (React + React Three Fiber, every 
 
 ## Mockups
 
+- `mockups/00-case-floor-game.svg` — animated game-style main view (open in a browser to see motion)
 - `mockups/01-case-floor-overview.svg` — main floor with HUD, filters, selected-case panel, live event ticker
 - `mockups/02-team-workload.svg` — analyst desks, floor tint = load, rebalance suggestions
 - `mockups/03-architecture.svg` — data flow
