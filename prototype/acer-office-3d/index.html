@@ -162,6 +162,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { ED_STAGES, CRO_STAGES, classify, alerts, ratingText } from './js/stages.js';
 import { loadCases } from './js/zoho-cases.js';
+import { zohoConfigured, zohoSignedIn, zohoSignIn, zohoCoql } from './js/zoho-login.js';
 
 // ================================================================ case data — live from Zoho CRM, never stored
 // 1) on claude.ai: the viewer's own Zoho CRM connector · 2) self-hosted: server/server.mjs → api/cases
@@ -186,6 +187,7 @@ async function viaServer() {
 }
 async function readLive() {
   try { const d = await viaConnector(); if (d) return d; } catch (e) { liveError = e; return null; }
+  if (zohoSignedIn()) { try { return await loadCases(zohoCoql); } catch (e) { liveError = e; return null; } }
   try { return await viaServer(); } catch (e) { liveError = liveError || e; return null; }
 }
 let DATA = await readLive();
@@ -1011,6 +1013,7 @@ q.addEventListener('focus', renderResults); q.addEventListener('input', renderRe
 q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
 q.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = q.value.trim().toLowerCase(); const c = CASES.find(x => x.company.toLowerCase().includes(t)); if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } } });
 const LIVE_HELP = {
+  needs_login: 'Your Zoho session ended — sign in again to see live cases.',
   needs_reauth: 'Zoho CRM connection expired — reconnect it in claude.ai Settings → Connectors.',
   server_not_connected: 'Add the Zoho CRM connector in claude.ai Settings → Connectors to see live cases.',
   selection_required: 'Pick which Zoho CRM connection this page should use.',
@@ -1028,7 +1031,12 @@ function showSource() {
   let b = document.getElementById('liveMsg');
   if (DATA) { b?.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'liveMsg'; b.className = 'card'; b.style.cssText = 'position:fixed;left:50%;top:84px;transform:translateX(-50%);padding:12px 18px;z-index:20;font-size:13px;max-width:560px;text-align:center'; document.body.appendChild(b); }
-  b.textContent = LIVE_HELP[liveError?.code] || 'Live Zoho CRM data shows when this page is opened in Claude with the Zoho CRM connector, or run with server/server.mjs.';
+  b.textContent = LIVE_HELP[liveError?.code] || (zohoConfigured() ? 'Sign in with your ACER Zoho account to see live cases.' : 'Live Zoho CRM data needs the Zoho Client ID in js/zoho-login.js.');
+  if (zohoConfigured() && !window.claude?.use) {
+    const btn = document.createElement('button'); btn.id = 'zohoSignIn'; btn.textContent = 'Sign in with Zoho';
+    btn.style.cssText = 'display:block;margin:10px auto 0;padding:8px 16px;border:0;border-radius:9px;background:#3AA4A9;color:#fff;font:700 13px Inter,system-ui,sans-serif;cursor:pointer';
+    btn.onclick = zohoSignIn; b.appendChild(btn);
+  }
 }
 showSource();
 // live mode: re-read Zoho every minute and whenever search opens (at most every 15 s); nothing is stored
