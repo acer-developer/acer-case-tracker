@@ -161,7 +161,6 @@ const ASSET_LIST = {
   tower: 'city/building-skyscraper-c', towerB: 'city/building-skyscraper-a', towerD: 'city/building-skyscraper-d', towerE: 'city/building-skyscraper-e',
   bldA: 'city/building-a', bldC: 'city/building-c', bldE: 'city/building-e', bldH: 'city/building-h',
   lowA: 'city/low-detail-building-a', lowC: 'city/low-detail-building-c', lowW: 'city/low-detail-building-wide-a',
-  ...Object.fromEntries(['male-a', 'male-b', 'male-d', 'male-e', 'male-f', 'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'].map(k => ['ch-' + k, 'characters/character-' + k])),
 };
 const ASSETS = {};
 await Promise.all(Object.entries(ASSET_LIST).map(async ([k, f]) => {
@@ -169,8 +168,6 @@ await Promise.all(Object.entries(ASSET_LIST).map(async ([k, f]) => {
 }));
 const FURN = 1.95; // Kenney furniture kit → metres
 const SIT_Y = .3;
-let OFFICE_TEX = null;
-try { OFFICE_TEX = await new THREE.TextureLoader().loadAsync('assets/characters/Textures/colormap-office.png'); OFFICE_TEX.flipY = false; OFFICE_TEX.colorSpace = THREE.SRGBColorSpace; } catch (e) { console.warn('office texture', e); }
 /** Place a static model with its footprint centred on (x, z). */
 function model(key, x, z, { ry = 0, s = FURN, y = 0, parent = null, sx = 1, sz = 1, sy = 1 } = {}) {
   const src = ASSETS[key]; if (!src) return null;
@@ -256,14 +253,14 @@ const C = {
 // ================================================================ ground / roads / greenery
 mesh(new THREE.PlaneGeometry(600, 600), C.ground).rotation.x = -Math.PI / 2;
 const ROAD_Z = 16;
-box(150, .04, 7.5, C.road, -8, 0, ROAD_Z, scene, .02);
-box(150, .14, 2.2, C.walk, -8, 0, ROAD_Z - 4.85, scene, .05);
-box(150, .14, 2.2, C.walk, -8, 0, ROAD_Z + 4.85, scene, .05);
-box(150, .1, 2.4, C.grass, -8, 0, ROAD_Z + 7.2, scene, .05);
-for (let x = -80; x < 66; x += 4.5) box(2.2, .05, .2, C.line, x, 0, ROAD_Z, scene, .02);
-for (const cx of [-36, 2]) for (let i = 0; i < 7; i++) box(.5, .06, 6.4, C.line, cx - 1.8 + i * .62, 0, ROAD_Z, scene, .02);
+box(190, .04, 7.5, C.road, -22, 0, ROAD_Z, scene, .02);
+box(190, .14, 2.2, C.walk, -22, 0, ROAD_Z - 4.85, scene, .05);
+box(190, .14, 2.2, C.walk, -22, 0, ROAD_Z + 4.85, scene, .05);
+box(190, .1, 2.4, C.grass, -22, 0, ROAD_Z + 7.2, scene, .05);
+for (let x = -114; x < 72; x += 4.5) box(2.2, .05, .2, C.line, x, 0, ROAD_Z, scene, .02);
+for (const cx of [-74, 1.6]) for (let i = 0; i < 7; i++) box(.5, .06, 6.4, C.line, cx - 1.8 + i * .62, 0, ROAD_Z, scene, .02);
 // side road into the ACER car park
-box(7, .04, 6, C.road, 30, 0, 9.5, scene, .02);
+box(7, .04, 6, C.road, 50, 0, 9.5, scene, .02);
 
 function tree(x, z, s = 1) {
   const g = group(x, 0, z);
@@ -280,97 +277,141 @@ function fence(x0, x1, z) {
   box(x1 - x0, .06, .05, '#c4ccd8', (x0 + x1) / 2, 1.0, z, scene, .02);
   box(x1 - x0, .06, .05, '#c4ccd8', (x0 + x1) / 2, .55, z, scene, .02);
 }
-for (const x of [-72, -60, -24, -12, 44, 56]) tree(x, ROAD_Z - 7.6, .95);
-for (let x = -74; x < 62; x += 7) tree(x + (x % 2), ROAD_Z + 7.2, 1);
-for (const x of [-64, -44, -20, 6, 26, 48]) lamp(x, ROAD_Z - 5.4);
-fence(38, 62, ROAD_Z - 9);
+for (const x of [-108, -96, -60, -48, -36, -24, -14, 58, 66]) tree(x, ROAD_Z - 7.6, .95);
+for (let x = -110; x < 68; x += 7) tree(x + (x % 2), ROAD_Z + 7.2, 1);
+for (const x of [-100, -80, -56, -32, -12, 12, 30, 48]) lamp(x, ROAD_Z - 5.4);
+fence(56, 70, ROAD_Z - 9);
 
 // ================================================================ people
 const SUITS = ['#2e3b55', '#45506a', '#283246', '#5b6680', '#3c4a63'];
-const HAIRS = ['#2b2420', '#4a3324', '#1f1f1f', '#6b4a2b', '#3a2a20'];
-function personPrim({ x = 0, z = 0, ry = 0, suit = '#2e3b55', hair = '#2b2420', female = false, tie = null, seated = false,
-                  carry = null, handOut = false, parent = scene, scale = 1.15 } = {}) {
-  const g = group(x, 0, z, ry, parent); g.scale.setScalar(scale);
-  const trousers = '#262d3a', shoe = '#1b1f26';
-  if (seated) {
-    for (const s of [-1, 1]) {
-      mesh(new THREE.CapsuleGeometry(.085, .36, 4, 10), female ? C.skin : trousers, s * .11, .5, .24, g).rotation.x = Math.PI / 2;
-      mesh(new THREE.CapsuleGeometry(.08, .3, 4, 10), female ? C.skin : trousers, s * .11, .26, .46, g);
-      box(.14, .08, .24, shoe, s * .11, 0, .52, g, .04);
-    }
-  } else {
-    for (const s of [-1, 1]) {
-      const leg = new THREE.Group(); leg.position.set(s * .11, .78, 0); g.add(leg); leg.userData.leg = s;
-      mesh(new THREE.CapsuleGeometry(.09, .58, 4, 10), female ? C.skin : trousers, 0, -.38, 0, leg);
-      box(.15, .09, .27, shoe, 0, -.78, .05, leg, .04);
-    }
-    if (female) mesh(new THREE.CylinderGeometry(.19, .27, .42, 18), suit, 0, .86, 0, g);
+const HAIRS = ['#4a3324', '#3a2a20', '#6b4a2b', '#2b2420', '#5a3d28'];
+// ---- original cartoon office characters (built in code, fully animated)
+const SKINS = ['#f1c7a3', '#e2ab82', '#c98d64', '#9a6644', '#f6d6ba'];
+const MALE_SUITS = ['#24314d', '#2c3a58', '#33415f', '#3d4660', '#1f2a3d'];
+const FEMALE_SUITS = ['#2D6A67', '#7a2e3a', '#3a4256', '#5d4a72', '#27324a'];
+const SHIRTS = ['#ffffff', '#e6f0fb', '#ffffff', '#f3efe6'];
+const TIES = ['#3AA4A9', '#8a2c3b', '#c08a2e', '#2f5f9e', '#3AA4A9'];
+const CHARS = [];
+const mixers = [];
+const ANIM_ALIAS = { 'emote-yes': 'talk', 'interact-right': 'shake', 'holding-right': 'carry', 'sit': 'sit' };
+function person(opts = {}) {
+  const { x = 0, z = 0, ry = 0, female = false, seated = false, carry = null, handOut = false, parent = scene, variant = null, tie = null } = opts;
+  const v = Math.abs(variant != null ? variant : Math.round(x * 7 + z * 13));
+  const skin = opts.skin || SKINS[v % SKINS.length];
+  const suit = opts.suit && !female ? opts.suit : (female ? FEMALE_SUITS : MALE_SUITS)[v % 5];
+  const shirt = SHIRTS[v % SHIRTS.length];
+  const hairC = opts.hair || HAIRS[v % HAIRS.length];
+  const trousers = female ? skin : '#232a38';
+  const g = group(x, 0, z, ry, parent); g.scale.set(1.08, 1.12, 1.08);
+  const S = (geo, c, px, py, pz, par, o) => mesh(geo, c, px, py, pz, par, o);
+  const J = (par, px, py, pz) => { const q = new THREE.Group(); q.position.set(px, py, pz); par.add(q); return q; };
+  const hips = J(g, 0, .86, 0);
+  // legs
+  const legs = [], knees = [];
+  for (const sd of [-1, 1]) {
+    const hip = J(hips, sd * .1, 0, 0);
+    S(new THREE.CapsuleGeometry(female ? .07 : .088, .3, 4, 12), trousers, 0, -.21, 0, hip);
+    const knee = J(hip, 0, -.42, 0);
+    S(new THREE.CapsuleGeometry(female ? .062 : .078, .3, 4, 12), trousers, 0, -.18, 0, knee);
+    S(RB(.13, .085, .27, .04), female ? '#3a2630' : '#171b22', 0, -.4, .045, knee);
+    legs.push(hip); knees.push(knee);
   }
-  const ty = seated ? 1.0 : 1.22;
-  const torso = mesh(new THREE.CapsuleGeometry(.2, .36, 6, 16), suit, 0, ty, 0, g); torso.scale.set(1, 1, .72);
-  mesh(new THREE.CircleGeometry(.085, 3), '#ffffff', 0, ty + .2, .15, g).rotation.z = -Math.PI / 2;
-  if (tie) box(.05, .24, .02, tie, 0, ty - .05, .148, g, .01);
-  for (const s of [-1, 1]) {
-    const arm = new THREE.Group(); arm.position.set(s * .27, ty + .2, 0); g.add(arm); arm.userData.arm = s;
-    mesh(new THREE.CapsuleGeometry(.065, .4, 4, 10), suit, 0, -.24, 0, arm);
-    mesh(new THREE.SphereGeometry(.06, 10, 8), C.skin, 0, -.5, 0, arm);
-    arm.rotation.z = s * .1;
-    if (seated) arm.rotation.x = -.9;
-    if (handOut && s === 1) arm.rotation.x = -1.25;
+  if (female) S(new THREE.CylinderGeometry(.2, .25, .4, 20), suit, 0, -.12, 0, hips);
+  else S(RB(.4, .14, .25, .06), trousers, 0, 0, 0, hips);
+  // torso
+  const torso = J(hips, 0, 0, 0);
+  S(RB(.44, .52, .27, .1), suit, 0, .28, 0, torso);
+  S(new THREE.CircleGeometry(.1, 3), shirt, 0, .44, .137, torso).rotation.z = -Math.PI / 2;
+  if (!female) { const t = S(RB(.055, .24, .02, .01), tie || TIES[v % TIES.length], 0, .34, .14, torso); }
+  else S(new THREE.SphereGeometry(.022, 10, 8), '#f3e7c9', 0, .45, .14, torso);
+  for (const sd of [-1, 1]) { const lp = S(RB(.05, .2, .02, .01), '#000000', sd * .07, .4, .138, torso, { transparent: true, opacity: .25 }); lp.rotation.z = sd * .45; }
+  S(RB(.16, .03, .02, .01), '#ffffff', -.1, .45, .138, torso).visible = false;
+  // arms
+  const arms = [], elbows = [];
+  for (const sd of [-1, 1]) {
+    const sh = J(torso, sd * .27, .48, 0);
+    S(new THREE.CapsuleGeometry(.068, .22, 4, 12), suit, 0, -.15, 0, sh);
+    const el = J(sh, 0, -.3, 0);
+    S(new THREE.CapsuleGeometry(.062, .18, 4, 12), suit, 0, -.12, 0, el);
+    S(new THREE.CylinderGeometry(.064, .064, .04, 12), shirt, 0, -.24, 0, el);
+    S(new THREE.SphereGeometry(.062, 12, 10), skin, 0, -.3, 0, el);
+    sh.rotation.z = sd * .06;
+    arms.push(sh); elbows.push(el);
   }
-  mesh(new THREE.CylinderGeometry(.06, .07, .12, 10), C.skin, 0, ty + .4, 0, g);
-  const hy = ty + .62;
-  mesh(new THREE.SphereGeometry(.17, 20, 16), C.skin, 0, hy, 0, g);
-  mesh(new THREE.SphereGeometry(.182, 20, 16, 0, Math.PI * 2, 0, Math.PI * .55), hair, 0, hy + .01, -.01, g).rotation.x = -.25;
-  if (female) { const b = mesh(new THREE.SphereGeometry(.19, 16, 12), hair, 0, hy - .08, -.07, g); b.scale.set(1, 1.2, .8); }
-  if (carry) { box(.36, .46, .05, carry, -.33, ty - .5, .08, g, .02).rotation.z = .1; box(.22, .04, .01, '#fff', -.33, ty - .3, .11, g, .005); }
+  // head
+  S(new THREE.CylinderGeometry(.06, .07, .1, 12), skin, 0, .58, 0, torso);
+  const head = J(torso, 0, .77, 0);
+  const hd = S(new THREE.SphereGeometry(.2, 28, 22), skin, 0, 0, 0, head); hd.scale.set(1, 1.04, .97);
+  for (const sd of [-1, 1]) {
+    const e = S(new THREE.SphereGeometry(.026, 12, 10), '#1d2128', sd * .072, .015, .18, head, { roughness: .3 }); e.scale.set(1, 1.35, .6);
+    S(new THREE.SphereGeometry(.008, 8, 6), '#ffffff', sd * .072 + .008, .03, .195, head, { emissive: '#ffffff', emissiveIntensity: .6 });
+    const br = S(RB(.07, .016, .015, .006), hairC, sd * .075, .085, .18, head); br.rotation.z = -sd * .12;
+    S(new THREE.SphereGeometry(.045, 10, 8), skin, sd * .197, 0, 0, head).scale.set(.55, 1, .9);
+    S(new THREE.CircleGeometry(.03, 14), '#f08c84', sd * .11, -.05, .172, head, { transparent: true, opacity: .35 });
+  }
+  S(new THREE.SphereGeometry(.024, 10, 8), skin, 0, -.025, .198, head);
+  const mouth = S(new THREE.TorusGeometry(.04, .008, 6, 16, Math.PI), '#9c4a45', 0, -.07, .178, head); mouth.rotation.z = Math.PI;
+  // hair styles
+  const style = female ? ['bun', 'bob', 'long', 'bun', 'bob'][v % 5] : ['short', 'side', 'short', 'bald', 'side'][v % 5];
+  if (style !== 'bald') { const cap = S(new THREE.SphereGeometry(.212, 26, 18, 0, Math.PI * 2, 0, Math.PI * .5), hairC, 0, .02, -.012, head); cap.rotation.x = -.32; }
+  else { const ring = S(new THREE.TorusGeometry(.19, .03, 8, 24, Math.PI * 1.2), hairC, 0, .01, -.02, head); ring.rotation.set(Math.PI / 2, 0, Math.PI * -.1 - Math.PI * .5); }
+  if (style === 'side') { const f = S(RB(.22, .06, .1, .03), hairC, -.04, .16, .12, head); f.rotation.z = .25; }
+  if (style === 'short') S(RB(.3, .05, .1, .03), hairC, 0, .17, .11, head).rotation.x = -.3;
+  if (style === 'bun') S(new THREE.SphereGeometry(.085, 14, 10), hairC, 0, .19, -.13, head);
+  if (style === 'bob') { const bb = S(RB(.44, .3, .3, .12), hairC, 0, -.04, -.06, head); bb.scale.set(1, 1, .9); }
+  if (style === 'long') S(new THREE.CapsuleGeometry(.17, .28, 6, 14), hairC, 0, -.14, -.1, head);
+  if (v % 4 === 1) for (const sd of [-1, 1]) S(new THREE.TorusGeometry(.04, .007, 6, 18), '#2a2f38', sd * .072, .015, .2, head);
+  // carried case file (left hand)
+  let folder = null;
+  if (carry) { folder = S(RB(.24, .32, .04, .02), carry, 0, -.32, .1, elbows[0]); folder.rotation.x = .2; }
+  g.userData.rig = { hips, legs, knees, arms, elbows, head, torso, phase: (v * 1.7) % 6.28 };
+  g.userData.anim = seated ? 'sit' : handOut ? 'shake' : carry ? 'carry' : 'idle';
+  g.userData.play = (name) => { g.userData.anim = ANIM_ALIAS[name] || name; };
+  g.userData.isCharacter = true;
+  CHARS.push(g);
   return g;
 }
-
-// ---- animated office characters (Kenney Mini Characters, CC0, clothes repainted as office wear)
-const MALES = ['male-d', 'male-a', 'male-e', 'male-f', 'male-b'], FEMALES = ['female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'];
-const mixers = [];
-const CH_SCALE = 1.85;
-function person(opts = {}) {
-  const { x = 0, z = 0, ry = 0, female = false, seated = false, carry = null, handOut = false, parent = scene, variant = null, model: mk = null } = opts;
-  let key = mk;
-  if (!key) {
-    const pool = female ? FEMALES : MALES;
-    const v = variant != null ? variant : Math.abs(Math.round(x * 7 + z * 13));
-    key = (opts.tie === C.teal && !female) ? 'male-d' : pool[v % pool.length];
+const SEAT_Y = .5;
+function animateChars(t) {
+  for (const c of CHARS) {
+    if (!c.visible) continue;
+    const r = c.userData.rig, a = c.userData.anim, p = t * 1 + r.phase;
+    const sit = a === 'sit' || a === 'type' || a === 'vote';
+    r.hips.position.y = sit ? SEAT_Y : .86;
+    let lx = 0, rx = 0, kl = 0, kr = 0, al = 0, ar = 0, el = 0, er = 0, hy = 0, hx = 0, bob = 0;
+    if (a === 'walk' || a === 'carry') {
+      const w = Math.sin(t * 8.5 + r.phase);
+      lx = w * .55; rx = -w * .55; kl = Math.max(0, -w) * .7; kr = Math.max(0, w) * .7;
+      ar = w * .45; al = a === 'carry' ? -.55 : -w * .45; el = a === 'carry' ? -1.1 : -.2; er = -.2;
+      bob = Math.abs(Math.cos(t * 8.5 + r.phase)) * .03;
+    } else if (sit) {
+      lx = rx = -Math.PI / 2 + .05; kl = kr = Math.PI / 2 - .05;
+      if (a === 'type') { al = ar = -.55; el = -1.0 + Math.sin(t * 9 + r.phase) * .08; er = -1.0 + Math.cos(t * 9 + r.phase) * .08; hx = .12; }
+      else if (a === 'vote') { ar = -2.85; er = -.15; al = -.4; el = -.9; }
+      else { al = ar = -.35; el = er = -.9; hy = Math.sin(t * .6 + r.phase) * .25; }
+    } else if (a === 'shake') {
+      ar = -1.15 + Math.sin(t * 6) * .08; er = -.25; hy = 0; hx = Math.sin(t * 2) * .04;
+    } else if (a === 'talk') {
+      ar = -.6 + Math.sin(t * 3 + r.phase) * .25; er = -.9; hx = Math.sin(t * 4) * .08;
+    } else { // idle
+      hy = Math.sin(t * .5 + r.phase) * .3; al = Math.sin(t * 1.2 + r.phase) * .03; ar = -al;
+    }
+    r.legs[0].rotation.x = lx; r.legs[1].rotation.x = rx; r.knees[0].rotation.x = kl; r.knees[1].rotation.x = kr;
+    r.arms[0].rotation.x = al; r.arms[1].rotation.x = ar; r.elbows[0].rotation.x = el; r.elbows[1].rotation.x = er;
+    r.head.rotation.y = hy; r.head.rotation.x = hx;
+    r.hips.position.y += bob;
+    r.torso.scale.y = 1 + Math.sin(t * 2 + r.phase) * .008;
   }
-  const src = ASSETS['ch-' + key];
-  if (!src) return personPrim(opts);
-  const g = group(x, 0, z, ry, parent);
-  const body = SkeletonUtils.clone(src.scene);
-  body.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (OFFICE_TEX) { o.material = o.material.clone(); o.material.map = OFFICE_TEX; } } });
-  body.scale.setScalar(CH_SCALE);
-  g.add(body);
-  const mixer = new THREE.AnimationMixer(body); mixers.push(mixer);
-  const acts = {}; for (const c of src.animations) acts[c.name] = mixer.clipAction(c);
-  let cur = null;
-  g.userData.play = (name, fade = .25) => {
-    const a = acts[name]; if (!a || a === cur) return;
-    a.reset().fadeIn(fade).play(); if (cur) cur.fadeOut(fade); cur = a;
-  };
-  g.userData.play(seated ? 'sit' : handOut ? 'interact-right' : carry ? 'holding-right' : 'idle', 0);
-  mixer.update(Math.random() * 2);
-  if (seated) body.position.y = SIT_Y;
-  if (carry) {
-    const hand = body.getObjectByName('arm-right');
-    const f = new THREE.Mesh(RB(.13, .17, .02, .01), M(carry)); f.castShadow = true;
-    f.position.set(0, -.12, .07); (hand || body).add(f);
-  }
-  g.userData.isCharacter = true;
-  return g;
 }
 function chair(x, z, ry = 0, parent = scene) {
   // Kenney chairs face -z by default; our seated people face +z of the chair group
-  model('chairDesk', x, z, { ry: ry + Math.PI, parent, s: FURN * .95 });
+  const ch = model('chairDesk', x, z, { ry: ry + Math.PI, parent, s: FURN * .95 });
+  ch?.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.set(o.material.color.getHSL({}).l > .45 ? '#56606e' : '#2f353f'); } });
 }
 function seatedAt(x, z, ry, i, female = false, parent = scene, data = null) {
   chair(x, z, ry, parent);
-  const p = person({ x, z, ry, suit: SUITS[i % 5], hair: HAIRS[i % 5], seated: true, female, parent, scale: 1.1, variant: i });
+  const p = person({ x, z, ry, seated: true, female, parent, variant: i + Math.round(x) });
+  p.userData.play('type');
   if (data) info(p, data);
   return p;
 }
@@ -405,6 +446,15 @@ function wallScreen(x, y, z, ry, w, h, draw, parent = scene) {
   return g;
 }
 
+function dynScreen(x, y, z, ry, w, h, parent = scene) {
+  const g = group(x, y, z, ry, parent);
+  box(w + .14, h + .14, .08, C.dark, 0, -h / 2 - .07, 0, g, .03);
+  const c = document.createElement('canvas'); c.width = Math.round(w * 220); c.height = Math.round(h * 220);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  plane(w, h, tex, 0, 0, .05, g);
+  return { draw(fn) { const g2 = c.getContext('2d'); g2.clearRect(0, 0, c.width, c.height); fn(g2, c.width, c.height); tex.needsUpdate = true; } };
+}
+
 // ================================================================ walls
 function wall(x1, z1, x2, z2, { h = 3.2, t = .3, doors = [], windows = [], color = '#ffffff', parent = scene } = {}) {
   const len = Math.hypot(x2 - x1, z2 - z1), ang = Math.atan2(z2 - z1, x2 - x1);
@@ -428,15 +478,16 @@ function wall(x1, z1, x2, z2, { h = 3.2, t = .3, doors = [], windows = [], color
 
 // ================================================================ city backdrop (Kenney city kit)
 (function backdrop() {
-  const behind = [['towerB', -62, -26, 6], ['bldA', -50, -24, 6.5], ['towerD', -22, -30, 6], ['lowW', -8, -28, 6.5], ['bldC', 8, -30, 6.5], ['towerE', 22, -30, 6],
-                  ['lowA', 36, -26, 6.5], ['bldH', 50, -24, 6.5], ['towerB', 62, -20, 5.5], ['lowC', 48, -6, 6.5], ['bldE', 56, 6, 6.5]];
+  const behind = [['towerB', -100, -26, 6], ['bldA', -60, -24, 6.5], ['towerD', -44, -30, 6], ['lowW', -26, -28, 6.5], ['bldC', -6, -34, 6.5], ['towerE', 14, -36, 6],
+                  ['lowA', 32, -34, 6.5], ['bldH', 52, -30, 6.5], ['towerB', 66, -20, 5.5], ['lowC', 64, -6, 6.5], ['bldE', 66, 6, 6.5], ['lowA', -30, 2, 6.5]];
   for (const [k, x, z, sc] of behind) model(k, x, z, { s: sc });
-  const front = [['lowA', -62, 34, 6.5], ['bldC', -46, 34, 6.5], ['lowW', -28, 34, 6.5], ['bldE', -10, 34, 6.5], ['lowC', 8, 34, 6.5], ['bldA', 26, 34, 6.5], ['lowA', 44, 34, 6.5], ['bldH', 60, 34, 6.5]];
+  const front = [['lowA', -100, 34, 6.5], ['bldC', -82, 34, 6.5], ['lowW', -62, 34, 6.5], ['bldE', -44, 34, 6.5], ['lowC', -26, 34, 6.5], ['bldA', -8, 34, 6.5], ['lowA', 10, 34, 6.5], ['bldH', 28, 34, 6.5], ['lowC', 46, 34, 6.5], ['bldE', 62, 34, 6.5]];
   for (const [k, x, z, sc] of front) model(k, x, z, { s: sc, ry: Math.PI });
 })();
 
 // ================================================================ CLIENT SITE · ABC Infrastructure Ltd.
-const CLIENT = { x: -40, z: -2 };
+const CLIENT_FIGS = [];
+const CLIENT = { x: -76, z: -2 };
 (function clientSite() {
   const { x: X, z: Z } = CLIENT;
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
@@ -463,7 +514,8 @@ const CLIENT = { x: -40, z: -2 };
   info(client, { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['In meeting', ''], rows: [['Meeting', 'Rating mandate discussion'], ['With', 'Rohan Mehta (ACER BD)'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
   const bd0 = person({ x: X + .8, z: Z + 5.6, ry: -Math.PI * .4, suit: '#2e3b55', tie: C.teal, carry: C.teal, handOut: true });
   info(bd0, BD_INFO('Client meeting', 'Meeting the CFO at ABC Infrastructure'));
-  label('Very glad to meet you!', 'bubble', X - .8, 2.9, Z + 5.4);
+  const meetBubble = label('Very glad to meet you!', 'bubble', X - .8, 2.9, Z + 5.4);
+  CLIENT_FIGS.push(client, bd0, meetBubble);
 })();
 
 function BD_INFO(stage, doing) {
@@ -487,42 +539,57 @@ function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = s
   for (const s of [-1, 1]) mesh(new THREE.SphereGeometry(.11, 10, 8), '#fff3c4', 2.15, .78, s * .6, g, { emissive: '#fff3c4', emissiveIntensity: .7 });
   return g;
 }
-const car = carModel({ x: -14, z: ROAD_Z + 1.8, color: '#ffffff', stripe: C.teal });
+const car = carModel({ x: -14, z: ROAD_Z - 1.8, color: '#ffffff', stripe: C.teal });
 info(car, { kind: 'Vehicle', icon: '🚗', title: 'ACER pool car · MH-02 AC 4521', sub: 'Driver: Suresh · BD on board', chip: ['On the road', ''], rows: [['From', 'ABC Infrastructure (BKC)'], ['To', 'ACER Office'], ['ETA', '10:58 (12 min)'], ['Carrying', 'Signed fee proposal']] });
 const carTag = label('<em>CAR</em> BD → ACER Office', 'tag3', 0, 2.6, 0, car);
-const traffic = [carModel({ x: 20, z: ROAD_Z - 1.8, ry: Math.PI, color: '#e8edf5', stripe: '#4f7fd9' }), carModel({ x: -50, z: ROAD_Z - 1.8, ry: Math.PI, color: '#f2d8a7', stripe: '#c98a1b' })];
+const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e8edf5', stripe: '#4f7fd9' }), carModel({ x: -50, z: ROAD_Z + 1.8, ry: Math.PI, color: '#f2d8a7', stripe: '#c98a1b' })];
 
-// ================================================================ ACER OFFICE (open-top cutaway)
-const A = { x0: -6, x1: 34, z0: -16, z1: 6, mid: -5 };
+// ================================================================ ACER OFFICE — separate room pods with walkways
+const A = { x0: -6, x1: 42, z0: -20, z1: 8 };
 box(A.x1 - A.x0 + 1.6, .22, A.z1 - A.z0 + 1.6, '#ffffff', (A.x0 + A.x1) / 2, 0, (A.z0 + A.z1) / 2, scene, .1);
 const FY = .22;
 const office = group(0, FY, 0);
-// room floors (clickable)
 const ROOMS = {};
-function room(key, name, x0, z0, x1, z1, tint, data) {
-  const f = mesh(new THREE.BoxGeometry(x1 - x0 - .1, .02, z1 - z0 - .1), tint, (x0 + x1) / 2, .01, (z0 + z1) / 2, office);
-  f.castShadow = false;
+const GLASS = new THREE.MeshStandardMaterial({ color: '#cfeaf2', transparent: true, opacity: .3, roughness: .08, metalness: .1 });
+const W = (a, b, c, d, o) => wall(a, b, c, d, { parent: office, ...o });
+// corridor runner + floor
+box(A.x1 - A.x0 - 1, .025, 5.2, '#e3e9f1', (A.x0 + A.x1) / 2, 0, -4.6, office, .01);
+/** A room pod: floor, walls (doors measured along each wall), clickable floor, sign. */
+function pod(key, name, x0, z0, x1, z1, { tint = '#f7f9fc', back = true, left = true, right = true, front = 'low', glass = false, backDoor = null, frontDoor = null, data = {} } = {}) {
+  const f = mesh(new THREE.BoxGeometry(x1 - x0 - .1, .03, z1 - z0 - .1), tint, (x0 + x1) / 2, .015, (z0 + z1) / 2, office); f.castShadow = false;
   ROOMS[key] = { name, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, x0, z0, x1, z1, mesh: f };
   info(f, { kind: 'Room', icon: '▦', title: name, ...data });
+  const col = glass ? GLASS : '#f4f7fa', h = 2.4;
+  if (back) W(x0, z0, x1, z0, { h, t: .2, color: col, doors: backDoor ? [backDoor] : [] });
+  if (left) W(x0, z0, x0, z1, { h, t: .2, color: col });
+  if (right) W(x1, z0, x1, z1, { h, t: .2, color: col });
+  if (front === 'low') {
+    W(x0, z1, x1, z1, { h: 1.0, t: .2, color: '#f4f7fa', doors: frontDoor ? [frontDoor] : [] });
+    // glass above the low wall
+    const len = x1 - x0, gl = new THREE.Mesh(new THREE.BoxGeometry(len, 1.4, .05), GLASS);
+    gl.position.set((x0 + x1) / 2, 1.7, z1); office.add(gl);
+    if (frontDoor) { const cut = new THREE.Mesh(new THREE.BoxGeometry(frontDoor[1] - frontDoor[0], 1.42, .07), new THREE.MeshBasicMaterial({ color: tint })); cut.visible = false; }
+  }
+  if (glass) for (let x = x0; x <= x1 + .01; x += 1.6) { box(.07, h, .07, '#dfe6ee', x, 0, z0, office, .02); }
+  const lbl = label(name, 'tag3', (x0 + x1) / 2, 2.9, z0 + .3, office); lbl.element.style.fontSize = '11px';
+  return ROOMS[key];
 }
-room('proposal', 'Proposal Desk', A.x0, A.mid, 6, A.z1, '#f7fafd', { sub: 'Deal owner + approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] });
-room('compliance', 'Compliance · CCO', A.x0, A.z0, 6, A.mid, '#f5f9fc', { sub: 'Mandate & accounts review', chip: ['Compliance approved ✓', ''], rows: [['Cases here', '5'], ['Statuses', 'Sent to CCO · Accounts Review · CCO Approved'], ['Owner', 'Compliance user']] });
-room('rating', 'Rating Team · Boardroom', 6, A.z0, A.x1, A.mid, '#f7fafd', { sub: 'Lead analysts working cases', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] });
-room('committee', 'Rating Committee', 18, A.mid, A.x1, A.z1, '#f5f9fc', { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] });
-room('published', 'Published', 6, A.mid, 18, A.z1, '#f7fafd', { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] });
+const COMP = pod('compliance', 'Compliance · CCO', -4, -18, 7, -8, { frontDoor: [8, 10], data: { sub: 'Mandate & accounts review', chip: ['Compliance approved ✓', ''], rows: [['Cases here', '5'], ['Statuses', 'Sent to CCO · Accounts Review · CCO Approved'], ['Owner', 'Compliance user']] } });
+const RATE = pod('rating', 'Rating Team · Boardroom', 10, -18, 27, -8, { frontDoor: [7, 9.5], data: { sub: 'Lead analysts working cases', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] } });
+const COMM = pod('committee', 'Rating Committee', 30, -18, 40, -8, { glass: true, frontDoor: [1.5, 3.5], tint: '#f3f7fb', data: { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] } });
+const PROP = pod('proposal', 'Reception · Proposal Desk', -4, -2, 7, 6, { front: false, backDoor: [8.2, 10.4], data: { sub: 'Deal owner + approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
+const PUB = pod('published', 'Published · Client Lounge', 23, -2, 40, 6, { front: false, right: false, backDoor: [2, 4], data: { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
 
+// outer building walls (teal, windows) + low front with the entrance
 const OUT = '#3AA4A9';
-const W = (a, b, c, d, o) => wall(a, b, c, d, { parent: office, ...o });
-W(A.x0, A.z0, A.x1, A.z0, { color: OUT, windows: [[2, 5.5], [8.5, 12], [16, 19.5], [23, 26.5], [30, 33.5], [36, 39]] });
-W(A.x0, A.z0, A.x0, A.z1, { color: OUT, windows: [[2, 5]], doors: [[14.6, 17.4]] });
-W(A.x1, A.z0, A.x1, A.z1, { color: OUT, windows: [[2.5, 6], [14, 17.5]] });
-W(A.x0, A.z1, A.x1, A.z1, { color: OUT, h: .9, doors: [[3.2, 6.2]] });
-// white inner caps on outer walls
+W(A.x0, A.z0, A.x1, A.z0, { color: OUT, windows: [[3, 7], [12, 16], [21, 25], [30, 34], [39, 43]] });
+W(A.x0, A.z0, A.x0, A.z1, { color: OUT, windows: [[3, 7], [15, 19]] });
+W(A.x1, A.z0, A.x1, A.z1, { color: OUT, windows: [[3, 7], [17, 21]] });
+W(A.x0, A.z1, A.x1, A.z1, { color: OUT, h: .8, doors: [[6, 9.2]] });
 box(A.x1 - A.x0, .06, .32, '#ffffff', (A.x0 + A.x1) / 2, 3.2, A.z0, office, .02);
 box(.32, .06, A.z1 - A.z0, '#ffffff', A.x0, 3.2, (A.z0 + A.z1) / 2, office, .02);
 box(.32, .06, A.z1 - A.z0, '#ffffff', A.x1, 3.2, (A.z0 + A.z1) / 2, office, .02);
-// ACER lettering on the outside of the left wall
-const sign = plane(9, 2, textTex('ACER', { size: 190, color: '#ffffff', spacing: 30 }), A.x0 - .17, 2.0, -10.2, office, true);
+const sign = plane(9, 2, textTex('ACER', { size: 190, color: '#ffffff', spacing: 30 }), A.x0 - .17, 2.0, -12, office, true);
 sign.rotation.y = -Math.PI / 2;
 // ---- upper floors: glass office tower that fades away when you look inside
 const acerShell = group(0, FY, 0);
@@ -560,83 +627,158 @@ let insideLabels = null;
 function updateShell(dt) {
   shellAlpha += (shellTarget - shellAlpha) * Math.min(1, dt * 4);
   if (!insideLabels) { insideLabels = []; office.traverse(o => { if (o.isCSS2DObject) insideLabels.push(o); }); }
-  for (const l of insideLabels) l.visible = shellAlpha < .5;
+  for (const l of insideLabels) l.visible = shellAlpha < .5 && l.userData.want !== false;
   acerShell.visible = shellAlpha > .02;
   for (const m of shellMats) { m.opacity = m.userData.base * shellAlpha; m.depthWrite = shellAlpha > .98; }
 }
-// interior partitions
-const PW = { h: 2.3, t: .22, color: C.part };
-W(A.x0, A.mid, A.x1, A.mid, { ...PW, doors: [[9.6, 12], [24, 26.6]] });
-W(6, A.z0, 6, A.mid, { ...PW, doors: [[6.4, 9.2]] });
-W(6, A.mid, 6, A.z1, PW);
-W(18, A.mid, 18, A.z1, { ...PW, doors: [[5.2, 7.8]] });
-// entrance canopy + steps
-box(4.4, .16, 2.2, '#ffffff', -.3, 2.6, A.z1 + 1.1, office, .06);
-for (const s of [-1, 1]) box(.14, 2.6, .14, '#d5dde8', -.3 + s * 2, 0, A.z1 + 2.0, office, .03);
-box(4.6, .1, 2.6, '#e9eef6', -.3, -.12, A.z1 + 1.3, office, .04);
-plant(-3.4, A.z1 + 2.2, .9, office); plant(2.8, A.z1 + 2.2, .9, office);
-// car park
-for (let i = 0; i < 4; i++) box(.12, .03, 4.6, '#ffffff', 26 + i * 2.6, 0, 9.8, scene, .02);
-carModel({ x: 27.3, z: 9.8, ry: -Math.PI / 2, color: '#ffffff', stripe: '#9aa6b4' });
-carModel({ x: 32.5, z: 9.8, ry: -Math.PI / 2, color: '#e8edf5', stripe: C.teal });
 
-// ---- Proposal desk (front-left)
-desk(-3.4, A.mid + 1.3, 0, { parent: office });
-seatedAt(-3.4, A.mid + 2.2, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
-desk(-.6, A.mid + 1.3, 0, { parent: office });
-seatedAt(-.6, A.mid + 2.2, Math.PI, 0, false, office, { kind: 'ACER staff', icon: '🧑‍💼', title: 'Vikram Rao', sub: 'Proposal desk · Pricing', chip: ['Negotiation', 'warn'], rows: [['Working on', 'Kavya Textiles NCD'], ['Queue', '4 proposals']] });
-plant(-5, 4.6, 1, office);
-const cool = group(4.8, 0, 4.8, 0, office); box(.45, .95, .45, '#eef1f5', 0, 0, 0, cool, .05); mesh(new THREE.CylinderGeometry(.18, .18, .45, 16), M('#9dd5ec', { transparent: true, opacity: .85 }), 0, 1.18, 0, cool);
-// ---- Compliance (back-left)
-desk(-3.4, A.z0 + 1.3, 0, { parent: office });
-seatedAt(-3.4, A.z0 + 2.2, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'ABC Infra mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
-desk(-.4, A.z0 + 1.3, 0, { parent: office });
-seatedAt(-.4, A.z0 + 2.2, Math.PI, 4, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Priya Nair', sub: 'Accounts review', chip: ['Accounts review', 'warn'], rows: [['Invoice', 'Paid · ₹ 6.5 L'], ['Source', 'Zoho Books']] });
-cabinet(-5.3, A.z0 + 4.2, Math.PI / 2, office); cabinet(-5.3, A.z0 + 5.0, Math.PI / 2, office);
-plant(5, A.z0 + 1.1, .9, office);
-// ---- Rating Team boardroom (back-right)
-shelf(8.4, A.z0 + .5, 0, 2.6, office);
-wallScreen(20, 2.7, A.z0 + .24, 0, 3.4, 1.7, (g, w, h) => {
+// entrance canopy
+box(4.6, .16, 2.2, '#ffffff', 1.6, 2.6, A.z1 + 1.1, office, .06);
+for (const sd of [-1, 1]) box(.14, 2.6, .14, '#d5dde8', 1.6 + sd * 2.1, 0, A.z1 + 2.0, office, .03);
+box(4.8, .1, 2.6, '#e9eef6', 1.6, -.12, A.z1 + 1.3, office, .04);
+plant(-1.4, A.z1 + 2.2, .9, office); plant(4.6, A.z1 + 2.2, .9, office);
+// car park (right of the building)
+for (let i = 0; i < 4; i++) box(4.6, .03, .12, '#ffffff', 50, 0, -6 + i * 2.6, scene, .02);
+carModel({ x: 50, z: -4.7, ry: 0, color: '#ffffff', stripe: '#9aa6b4' });
+carModel({ x: 50, z: .5, ry: 0, color: '#e8edf5', stripe: C.teal });
+
+function art(x, y, z, ry, w, h, seed, parent = office) {
+  const g = group(x, y, z, ry, parent);
+  box(w + .1, h + .1, .05, '#ffffff', 0, -h / 2 - .05, 0, g, .02);
+  plane(w, h, canvasTex(256, Math.round(256 * h / w), (c, cw, ch) => {
+    const pal = [['#3AA4A9', '#f2c46d', '#e8eef4', '#2D6A67'], ['#7fa7d9', '#e58fa5', '#f4efe6', '#3a4256'], ['#9fd3c7', '#3AA4A9', '#f6f2ea', '#c98a1b']][seed % 3];
+    c.fillStyle = pal[2]; c.fillRect(0, 0, cw, ch);
+    c.fillStyle = pal[0]; c.beginPath(); c.arc(cw * .35, ch * .55, ch * .32, 0, 7); c.fill();
+    c.fillStyle = pal[1]; c.fillRect(cw * .55, ch * .2, cw * .3, ch * .55);
+    c.strokeStyle = pal[3]; c.lineWidth = 6; c.beginPath(); c.moveTo(cw * .1, ch * .85); c.lineTo(cw * .9, ch * .15); c.stroke();
+  }), 0, 0, .03, g);
+}
+// ---- cupboards packed with binders (like a real rating office)
+const BINDERS = ['#3AA4A9', '#2f5f9e', '#c0504d', '#f2c46d', '#7fa7d9', '#9fd3c7', '#5d4a72', '#e58fa5', '#2D6A67', '#ffffff'];
+function cupboard(x, z, ry = 0, w = 1.8, h = 2.1, parent = office, seed = 0) {
+  const g = group(x, 0, z, ry, parent);
+  const d = .42, wood = '#f1efea', edge = '#d9d4ca';
+  box(w, h, .04, edge, 0, 0, -d / 2 + .02, g, .01);                       // back
+  for (const sx of [-1, 1]) box(.05, h, d, wood, sx * (w / 2 - .025), 0, 0, g, .01);  // sides
+  box(w, .05, d, wood, 0, h - .05, 0, g, .01);                              // top
+  box(w - .1, .5, d - .02, '#e7e3db', 0, 0, .01, g, .02);                   // closed base
+  box(w - .14, .02, .01, '#b9b2a6', 0, .47, d / 2, g, .005);
+  for (let k = 0; k < 2; k++) box(.18, .03, .02, '#9c968c', (k ? 1 : -1) * w / 4, .3, d / 2 + .01, g, .01);
+  let r = seed * 9301 + 49297;
+  const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  const shelves = 3, sh = (h - .58) / shelves;
+  for (let k = 0; k < shelves; k++) {
+    const y0 = .52 + k * sh;
+    box(w - .1, .03, d - .04, wood, 0, y0, 0, g, .01);
+    let bx = -w / 2 + .1;
+    while (bx < w / 2 - .14) {
+      const bw = .06 + rnd() * .05, bh = sh * (.6 + rnd() * .3);
+      if (rnd() < .12) { bx += .12; continue; }
+      const b = box(bw, bh, d * .7, BINDERS[Math.floor(rnd() * BINDERS.length)], bx + bw / 2, y0 + .03, .02, g, .01);
+      if (rnd() < .1) b.rotation.z = -.18;
+      bx += bw + .012;
+    }
+  }
+  return g;
+}
+
+// ---------------- Compliance pod
+cupboard(-1.6, -17.6, 0, 2.6, 2.1, office, 1); cupboard(4.4, -17.6, 0, 2.6, 2.1, office, 2);
+cupboard(-3.6, -12.6, Math.PI / 2, 2.6, 2.1, office, 5);
+desk(-1.0, -14.6, 0, { parent: office });
+seatedAt(-1.0, -13.7, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'ABC Infra mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
+desk(2.2, -14.6, 0, { parent: office });
+seatedAt(2.2, -13.7, Math.PI, 4, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Priya Nair', sub: 'Accounts review', chip: ['Accounts review', 'warn'], rows: [['Invoice', 'Paid · ₹ 6.5 L'], ['Source', 'Zoho Books']] });
+desk(5.2, -14.6, 0, { parent: office });
+seatedAt(5.2, -13.7, Math.PI, 3, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Kavya Menon', sub: 'Compliance analyst', chip: ['KYC review', 'warn'], rows: [['Queue', '3 mandates']] });
+plant(-3.2, -8.8, .9, office); art(1.4, 2.2, -17.83, 0, 1.2, .8, 1);
+// ---------------- Rating Team pod (largest)
+cupboard(11.6, -17.6, 0, 2.4, 2.1, office, 12); cupboard(14.2, -17.6, 0, 2.4, 2.1, office, 3);
+cupboard(23.0, -17.6, 0, 2.4, 2.1, office, 4); cupboard(25.6, -17.6, 0, 2.4, 2.1, office, 6);
+wallScreen(18.6, 2.6, -17.78, 0, 3.4, 1.6, (g, w, h) => {
   g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#2D6A67'; g.font = '800 40px Inter'; g.fillText('ABC Infra · Financials FY24–26', 30, 62);
   [90, 130, 110, 170, 210].forEach((v, i) => { g.fillStyle = i < 4 ? '#8fd0d2' : '#3AA4A9'; g.fillRect(60 + i * 130, h - 40 - v, 80, v); });
 }, office);
-table(20, A.z0 + 5.2, 7.2, 2.0, office);
+box(9.2, .03, 4.4, '#d3dbe6', 18.4, 0, -13.2, office, .015);
+table(18.4, -13.2, 7.0, 2.0, office);
 const ANALYSTS = ['Rahul Mehta', 'Sneha Pillai', 'Kavita Joshi', 'Arjun Desai', 'Meera Shah', 'Dev Patel'];
-[16.8, 18.9, 21.1, 23.2].forEach((x, i) => {
-  seatedAt(x, A.z0 + 3.75, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst · ABC Infra' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'ACR/2026/0847 ABC Infra' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
-  box(.42, .02, .3, '#c9d1dc', x, .78, A.z0 + 4.6, office, .01);
+[15.6, 17.5, 19.4, 21.3].forEach((x, i) => {
+  seatedAt(x, -14.65, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst · ABC Infra' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'ACR/2026/0847 ABC Infra' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
+  box(.42, .02, .3, '#c9d1dc', x, .78, -13.8, office, .01);
 });
-[17.8, 22.2].forEach((x, i) => seatedAt(x, A.z0 + 6.6, Math.PI, i + 2, false, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[4 + i], sub: 'Analyst', chip: ['Data collection', 'grey'], rows: [['Cases', '4']] }));
-info(person({ x: 14.4, z: A.z0 + 4.6, ry: Math.PI / 2, suit: SUITS[1], hair: HAIRS[1], tie: C.tealD, parent: office }), { kind: 'Rating Team', icon: '🧑‍🏫', title: 'S. Iyer', sub: 'Head of Ratings', chip: ['Reviewing', ''], rows: [['Team', '6 analysts'], ['WIP', '21 cases']] });
-desk(28.5, A.z0 + 1.3, 0, { parent: office }); seatedAt(28.5, A.z0 + 2.2, Math.PI, 3, false, office);
-desk(31.3, A.z0 + 1.3, 0, { parent: office }); seatedAt(31.3, A.z0 + 2.2, Math.PI, 1, true, office);
-plant(33, A.mid - 1.2, 1, office);
-// ---- Rating Committee (front-right)
-wallScreen(33.75, 2.3, 0, -Math.PI / 2, 3.0, 1.5, (g, w, h) => {
-  g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#62758a'; g.font = '800 34px Inter'; g.fillText('RATING COMMITTEE · VOTE', 30, 58);
-  g.fillStyle = '#2D6A67'; g.font = '900 100px Inter'; g.fillText('AA+', 30, 178);
-  g.fillStyle = '#3AA4A9'; g.font = '800 40px Inter'; g.fillText('5 / 5 in favour', 260, 170);
-}, office);
-table(26, 0, 6.0, 2.0, office);
+[16.5, 20.3].forEach((x, i) => seatedAt(x, -11.75, Math.PI, i + 2, false, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[4 + i], sub: 'Analyst', chip: ['Data collection', 'grey'], rows: [['Cases', '4']] }));
+info(person({ x: 12.9, z: -13.2, ry: Math.PI / 2, tie: C.tealD, parent: office, variant: 1 }), { kind: 'Rating Team', icon: '🧑‍🏫', title: 'S. Iyer', sub: 'Head of Ratings', chip: ['Reviewing', ''], rows: [['Team', '6 analysts'], ['WIP', '21 cases']] });
+desk(26.2, -15.0, -Math.PI / 2, { parent: office }); seatedAt(25.3, -15.0, Math.PI / 2, 3, false, office);
+desk(26.2, -11.8, -Math.PI / 2, { parent: office }); seatedAt(25.3, -11.8, Math.PI / 2, 1, true, office);
+model('side', 11.0, -9.0, { parent: office, s: FURN * 1.3 }); model('coffee', 11.0, -9.0, { parent: office, y: .78, s: FURN * 1.1 });
+plant(26.2, -8.8, 1, office);
+// ---------------- Rating Committee pod (glass)
+const rcScreen = dynScreen(35, 2.4, -17.78, 0, 3.0, 1.5, office);
+function drawRC(state) {
+  rcScreen.draw((g, w, h) => {
+    g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#62758a'; g.font = '800 34px Inter'; g.fillText('RATING COMMITTEE · RC-2026-112', 30, 58);
+    if (state === 'done') {
+      g.fillStyle = '#2D6A67'; g.font = '900 100px Inter'; g.fillText('AA+', 30, 178);
+      g.fillStyle = '#3AA4A9'; g.font = '800 40px Inter'; g.fillText('5 / 5 in favour', 260, 170);
+    } else if (state === 'voting') {
+      g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText('ABC Infrastructure Ltd.', 30, 140);
+      g.fillStyle = '#c98a1b'; g.font = '800 38px Inter'; g.fillText('● Voting in progress…', 30, 210);
+    } else {
+      g.fillStyle = '#9aa6b4'; g.font = '700 40px Inter'; g.fillText('Waiting for the case file', 30, 160);
+    }
+  });
+}
+box(7.6, .03, 4.4, '#d3dbe6', 35.2, 0, -13.2, office, .015);
+table(35.2, -13.2, 5.4, 2.0, office);
 const RC = ['Dr. R. Menon (Chair)', 'Lata Bhat', 'K. Srinivasan', 'Farah Khan', 'Ajay Gupta', 'N. Kulkarni'];
-[23.6, 25.2, 26.8, 28.4].forEach((x, i) => seatedAt(x, -1.45, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] }));
-[24.4, 27.6].forEach((x, i) => seatedAt(x, 1.45, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[4 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
-seatedAt(29.8, 0, -Math.PI / 2, 2, false, office);
-plant(33, 4.6, 1, office);
-// ---- Published (front-middle)
-wallScreen(12, 2.5, A.mid + .14, 0, 4.6, 1.8, (g, w, h) => {
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#3AA4A9'; g.fillRect(0, 0, w, 18);
-  g.fillStyle = '#62758a'; g.font = '800 32px Inter'; g.fillText('RATING PUBLISHED', 44, 80);
-  g.fillStyle = '#1d2733'; g.font = '800 50px Inter'; g.fillText('ABC Infrastructure Ltd.', 44, 150);
-  g.fillStyle = '#2D6A67'; g.font = '900 110px Inter'; g.fillText('ACER AA+', 44, 290);
-  g.fillStyle = '#3AA4A9'; g.font = '800 46px Inter'; g.fillText('Stable', 610, 285);
-}, office);
-plant(7, 4.6, 1, office); plant(17, 4.6, 1, office);
-info(person({ x: 12.6, z: 1.3, ry: -Math.PI * .35, suit: '#3c4a63', hair: HAIRS[2], tie: C.teal, handOut: true, parent: office }), { kind: 'ACER staff', icon: '🧑‍💼', title: 'Ramesh Iyer', sub: 'Chief Ratings Officer', chip: ['CRO Approved ✓', ''], rows: [['Released', 'ABC Infra · AA+ | Stable'], ['Rating record', 'Created'], ['Next', 'Surveillance in 12 months']] });
-info(person({ x: 11, z: 1.6, ry: Math.PI * .3, suit: '#5b6680', hair: '#6b4a2b', tie: '#b08a5a', handOut: true, parent: office }), { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['Rating received', ''], rows: [['Rating', 'ACER AA+ | Stable'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
-label('Thank you, ACER!', 'bubble', 11, 3.2, 1.6, office);
+const RC_PEOPLE = [];
+[33.4, 35.2, 37.0].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -14.65, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] })));
+[34.3, 36.1].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -11.75, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] })));
+RC_PEOPLE.push(seatedAt(38.6, -13.2, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
+RC_PEOPLE.forEach(p => p.userData.play('sit'));
+cupboard(31.6, -17.6, 0, 2.2, 1.6, office, 8); plant(39.2, -8.8, .9, office);
+// ---------------- Reception · Proposal pod
+box(2.8, 1.05, .7, '#ffffff', -1.6, 0, 3.8, office, .08);
+box(2.82, .22, .72, C.teal, -1.6, .55, 3.8, office, .04);
+seatedAt(-1.6, 2.8, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Reception', sub: 'Front desk · visitors & couriers', chip: ['On duty', ''], rows: [['Visitors today', '6']] });
+desk(-1.8, -.8, 0, { parent: office });
+seatedAt(-1.8, .1, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
+desk(1.2, -.8, 0, { parent: office });
+seatedAt(1.2, .1, Math.PI, 0, false, office, { kind: 'ACER staff', icon: '🧑‍💼', title: 'Vikram Rao', sub: 'Proposal desk · Pricing', chip: ['Negotiation', 'warn'], rows: [['Working on', 'Kavya Textiles NCD'], ['Queue', '4 proposals']] });
+cupboard(-3.6, 2.2, Math.PI / 2, 2.4, 2.1, office, 9);
+model('coat', -3.4, 5.4, { parent: office, s: FURN * 1.2 });
+plant(6.3, 5.2, 1, office); art(-3.83, 2.0, -.6, Math.PI / 2, 1.2, .8, 0);
+// ---------------- Lounge between reception and published
+box(7.4, .03, 5.4, '#dfe5ee', 15, 0, 2.2, office, .015);
+model('sofa', 13.4, 4.4, { parent: office, ry: Math.PI, s: FURN * 1.25 });
+model('sofa', 17.0, 4.4, { parent: office, ry: Math.PI, s: FURN * 1.25 });
+model('coffeeTable', 15.2, 2.6, { parent: office, s: FURN * 1.3 });
+model('lamp', 11.2, 5.0, { parent: office, s: FURN * 1.3 });
+plant(19.4, 5.2, 1, office); plant(11, -.8, .9, office);
+const cool = group(19.4, 0, -.8, 0, office); box(.45, .95, .45, '#eef1f5', 0, 0, 0, cool, .05); mesh(new THREE.CylinderGeometry(.18, .18, .45, 16), M('#9dd5ec', { transparent: true, opacity: .85 }), 0, 1.18, 0, cool);
+// ---------------- Published · client lounge
+const pubWall = dynScreen(32, 2.5, -1.75, 0, 4.6, 1.8, office);
+function drawPub(done) {
+  pubWall.draw((g, w, h) => {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = done ? '#3AA4A9' : '#c5ced8'; g.fillRect(0, 0, w, 18);
+    g.fillStyle = '#62758a'; g.font = '800 32px Inter'; g.fillText(done ? 'RATING PUBLISHED' : 'RATING · NOT YET RELEASED', 44, 80);
+    g.fillStyle = '#1d2733'; g.font = '800 50px Inter'; g.fillText('ABC Infrastructure Ltd.', 44, 150);
+    if (done) { g.fillStyle = '#2D6A67'; g.font = '900 110px Inter'; g.fillText('ACER AA+', 44, 290); g.fillStyle = '#3AA4A9'; g.font = '800 46px Inter'; g.fillText('Stable', 610, 285); }
+    else { g.fillStyle = '#9aa6b4'; g.font = '700 44px Inter'; g.fillText('Awaiting Rating Committee decision', 44, 270); }
+  });
+}
+box(6.4, .03, 3.8, '#d8dfe8', 36.6, 0, 3.4, office, .015);
+model('sofa', 36.6, 4.9, { parent: office, ry: Math.PI, s: FURN * 1.25 });
+model('coffeeTable', 36.6, 3.2, { parent: office, s: FURN * 1.2 });
+model('lamp', 39.4, 5.0, { parent: office, s: FURN * 1.3 });
+cupboard(23.4, 2.0, Math.PI / 2, 2.4, 1.8, office, 10);
+plant(25.4, 5.2, 1, office); plant(39.2, -1.0, 1, office);
+const pubBD = info(person({ x: 32.6, z: 1.6, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), BD_INFO('Published', 'Handing over the rating to the client'));
+const pubClient = info(person({ x: 31.0, z: 1.9, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['Rating received', ''], rows: [['Rating', 'ACER AA+ | Stable'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
+const pubBubble = label('Thank you, ACER!', 'bubble', 31.0, 3.2, 1.9, office);
+function setPublished(on) { pubBD.visible = pubClient.visible = on; pubBubble.userData.want = on; pubBubble.visible = on; drawPub(on); }
 
 // ---- robot courier
 function robot(x, z, ry = 0, parent = scene) {
@@ -655,15 +797,13 @@ function robot(x, z, ry = 0, parent = scene) {
   g.scale.setScalar(1.15);
   return g;
 }
-const bot = robot(4.4, -8, Math.PI / 2, office);
+const BOT_PARK = { compliance: [5.0, -10.0], rating: [18.2, -9.6], committee: [32.5, -9.8] };
+const bot = robot(...BOT_PARK.committee, Math.PI, office);
 info(bot, { kind: 'Robot courier', icon: '🤖', title: 'Case courier R-01', sub: 'Carries case files between rooms', chip: ['Delivering', ''], rows: [['Carrying', 'ABC Infra case file'], ['From', 'Compliance'], ['To', 'Rating Team'], ['Battery', '86%']] });
-label('<em>R-01</em> case file → Rating Team', 'tag3', 0, 2.8, 0, bot);
+const botTag = label('<em>R-01</em> parked', 'tag3', 0, 2.8, 0, bot);
+const setBotTag = t => botTag.element.innerHTML = '<em>R-01</em> ' + t;
 
-// ---- BD storyboard figures inside ACER
-const cast = [
-  info(person({ x: -1.9, z: A.mid + 3.4, ry: Math.PI, suit: '#2e3b55', tie: C.teal, carry: C.teal, parent: office }), BD_INFO('Proposal', 'Collecting the approved fee proposal')),
-  info(person({ x: 1.6, z: A.z0 + 3.8, ry: Math.PI * .85, suit: '#2e3b55', tie: C.teal, carry: C.teal, parent: office }), BD_INFO('Compliance', 'Handing the mandate to the CCO')),
-];
+const cast = [];
 
 // ================================================================ selection brackets
 const selGroup = new THREE.Group(); scene.add(selGroup);
@@ -700,10 +840,10 @@ const STEPS = [
   { t: 'Travel to ACER', s: 'by car', chip: 'Proposal sent', where: 'On the road', who: 'BD · Rohan Mehta', site: 'road' },
   { t: 'Proposal', s: 'approved', chip: 'Price approval ✓', where: 'Proposal Desk', who: 'Deal approver', site: 'proposal' },
   { t: 'Compliance', s: 'approved', chip: 'CCO approved ✓', where: 'Compliance · CCO', who: 'Anil Kapoor (CCO)', site: 'compliance' },
-  { t: 'Hand-off', s: 'robot courier', chip: 'LA selected', where: 'Corridor', who: 'Robot R-01', site: 'rating' },
+  { t: 'Hand-off', s: 'robot to Rating', chip: 'LA selected', where: 'Robot R-01 en route', who: 'Robot R-01', site: 'rating' },
   { t: 'Rating Team', s: 'rating note', chip: 'Rating Note Create', where: 'Rating Team · Boardroom', who: 'Lead Analyst · Rahul Mehta', site: 'rating' },
-  { t: 'Committee', s: 'voting done', chip: 'Voting done ✓', where: 'Rating Committee', who: 'Committee (5 members)', site: 'committee' },
-  { t: 'Published', s: 'AA+ | Stable', chip: 'Published · AA+ | Stable', where: 'Published', who: 'CRO · Ramesh Iyer', site: 'published' },
+  { t: 'Committee', s: 'robot → vote', chip: 'Voting done ✓', where: 'Rating Committee', who: 'Committee (5 members)', site: 'committee' },
+  { t: 'Published', s: 'rating released', chip: 'Published · AA+ | Stable', where: 'Published', who: 'BD hands over to client', site: 'published' },
 ];
 let stepNow = 7;
 const stepsEl = document.getElementById('steps');
@@ -737,19 +877,20 @@ renderList('rooms');
 
 // ================================================================ camera views
 const VIEWS = {
-  all: [new THREE.Vector3(-46, 62, 84), new THREE.Vector3(-6, 4, -2)],
-  acer: [new THREE.Vector3(-14, 46, 58), new THREE.Vector3(13, 0, -4)],
-  client: [new THREE.Vector3(-70, 36, 46), new THREE.Vector3(-38, 4, -1)],
-  road: [new THREE.Vector3(-36, 22, 40), new THREE.Vector3(-14, 0, 14)],
-  proposal: [new THREE.Vector3(-14, 20, 22), new THREE.Vector3(0, 0, 0)],
-  compliance: [new THREE.Vector3(-14, 20, 8), new THREE.Vector3(0, 0, -11)],
-  rating: [new THREE.Vector3(6, 24, 16), new THREE.Vector3(20, 0, -10)],
-  committee: [new THREE.Vector3(14, 22, 22), new THREE.Vector3(27, 0, 0)],
-  published: [new THREE.Vector3(0, 20, 22), new THREE.Vector3(12, 0, 0)],
+  all: [new THREE.Vector3(-70, 74, 98), new THREE.Vector3(-20, 4, -2)],
+  building: [new THREE.Vector3(-30, 40, 78), new THREE.Vector3(16, 4, -4)],
+  acer: [new THREE.Vector3(-2, 40, 42), new THREE.Vector3(18, 0, -6)],
+  client: [new THREE.Vector3(-106, 34, 46), new THREE.Vector3(-74, 4, -1)],
+  road: [new THREE.Vector3(-62, 22, 44), new THREE.Vector3(-36, 0, 14)],
+  proposal: [new THREE.Vector3(-12, 18, 22), new THREE.Vector3(1, 0, 0)],
+  compliance: [new THREE.Vector3(-10, 20, 6), new THREE.Vector3(1.5, 0, -13)],
+  rating: [new THREE.Vector3(6, 22, 9), new THREE.Vector3(18.5, 0, -13)],
+  committee: [new THREE.Vector3(24, 20, 8), new THREE.Vector3(35, 0, -13)],
+  published: [new THREE.Vector3(20, 18, 22), new THREE.Vector3(31, 0, 1)],
 };
-const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
+const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], building: ['ACER', 'ACER Office · Mumbai', 'Credit rating HQ'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
 let fly = null;
-const EXTERIOR = new Set(['all', 'client', 'road']);
+const EXTERIOR = new Set(['all', 'client', 'road', 'building']);
 function flyTo(key, dur = 1.6) {
   const v = VIEWS[key]; if (!v) return;
   shellTarget = EXTERIOR.has(key) ? 1 : 0;
@@ -757,7 +898,10 @@ function flyTo(key, dur = 1.6) {
   const s = SITE_LABEL[key] || SITE_LABEL.acer;
   document.getElementById('siteTag').textContent = s[0]; document.getElementById('siteName').textContent = s[1]; document.getElementById('siteSub').textContent = s[2];
 }
-flyTo('all', .01);
+flyTo('building', .01);
+let introDone = false;
+setTimeout(() => { if (!introDone && !replay) flyTo('acer', 2.4); introDone = true; }, 3200);
+renderer.domElement.addEventListener('pointerdown', () => { introDone = true; });
 const menu = document.getElementById('menu');
 document.getElementById('siteBtn').onclick = () => menu.classList.toggle('open');
 menu.querySelectorAll('[data-site]').forEach(el => el.onclick = () => { menu.classList.remove('open'); flyTo(el.dataset.site); });
@@ -779,41 +923,79 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (o) { showInfo(o.userData.info); showBrackets(o); }
 });
 
-// ================================================================ replay (BD walks the real journey)
-const PATH = [[-39.2, 3.6, 0], [-39, 9.4, 1], [-36, 12.6, 1], [-14, 12.6, 1], [-2, 12.6, 2], [-1.3, 8.3, 2], [-1.3, A.mid + 3.4, 2], [3.6, A.mid + .6, 3],
-              [3.6, A.z0 + 4, 3], [5.6, -8, 4], [12, -8, 4], [15.6, -8.5, 5], [25.3, -6.2, 6], [25.3, 3.2, 6], [18.6, 3.4, 7], [13.6, 3.0, 7]];
-const walker = person({ suit: '#2e3b55', tie: C.teal, carry: C.teal });
+// ================================================================ replay: the real journey of the case
+// BD meets the client → drives to ACER → submits at Proposal + Compliance → robot carries the case
+// to the Rating Team → robot carries it to the Committee → vote → rating released → BD hands it to the client.
+const walker = person({ tie: C.teal, carry: C.teal, variant: 0 });
 walker.visible = false;
 info(walker, BD_INFO('Replay', 'Walking the ABC Infrastructure journey'));
-const wl = [], wa = []; walker.traverse(o => { if (o.userData.leg) wl.push(o); if (o.userData.arm) wa.push(o); });
-const youAreHere = label('<div class="pin"></div>', '', 0, 2.9, 0, walker); youAreHere.visible = false;
+const youAreHere = label('<div class="pin"></div>', '', 0, 3.0, 0, pubBD); youAreHere.visible = false; youAreHere.userData.want = false; youAreHere.userData.want = false;
 let replay = null;
-document.getElementById('replay').onclick = () => {
-  cast.forEach(c => c.visible = false); walker.visible = true; youAreHere.visible = false;
-  replay = { i: 0, t: 0, pause: 1.0, lastStep: -1 };
-  walker.position.set(PATH[0][0], 0, PATH[0][1]);
-  setStep(0); flyTo('client', 1.2);
-};
+const CAR_Z = ROAD_Z - 1.8;
+const W_SPEED = 3.2, BOT_SPEED = 3.0, CAR_SPEED = 11;
+function finalState() {
+  walker.visible = false; CLIENT_FIGS.forEach(f => f.visible = false);
+  bot.position.set(BOT_PARK.committee[0], 0, BOT_PARK.committee[1]); bot.rotation.y = Math.PI; setBotTag('parked · Committee');
+  drawRC('done'); setPublished(true); RC_PEOPLE.forEach(p => p.userData.play('sit'));
+}
+function SCRIPT() {
+  const at = (x, z, y = 0) => [x, z, y];
+  const step = (n, view) => () => { setStep(n); if (view) flyTo(view, 1.4); };
+  return [
+    { kind: 'call', fn: () => {
+      CLIENT_FIGS.forEach(f => f.visible = true); CLIENT_FIGS[1].visible = false;
+      walker.visible = true; walker.position.set(CLIENT.x + .8, 0, CLIENT.z + 5.6); walker.rotation.y = -Math.PI * .4; walker.userData.play('shake');
+      setPublished(false); drawRC('idle'); youAreHere.visible = false; youAreHere.userData.want = false;
+      bot.position.set(BOT_PARK.compliance[0], 0, BOT_PARK.compliance[1]); bot.rotation.y = 0; setBotTag('waiting at Compliance');
+      step(0, 'client')();
+    } },
+    { kind: 'wait', d: 2.4 },
+    { kind: 'call', fn: () => { CLIENT_FIGS[2].visible = false; } },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(CLIENT.x + .8, CLIENT.z + 5.6), at(CLIENT.x + 1, 9.4), at(CLIENT.x + 3.5, 12.6)] },
+    { kind: 'call', fn: () => { walker.visible = false; car.position.set(CLIENT.x + 3.5, 0, CAR_Z); step(1, 'road')(); } },
+    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(CLIENT.x + 3.5, CAR_Z), at(-40, CAR_Z)] },
+    { kind: 'call', fn: () => flyTo('building', 1.6) },
+    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(-40, CAR_Z), at(1.6, CAR_Z)] },
+    { kind: 'call', fn: () => { walker.visible = true; walker.position.set(1.6, 0, 12.6); } },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(1.6, 12.6), at(1.6, 9.2), at(1.6, 7, FY), at(.6, 1.6, FY)], onStart: step(2, 'proposal') },
+    { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
+    { kind: 'wait', d: 1.8 },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(.6, 1.6, FY), at(5.3, 1.2, FY), at(5.3, -5, FY), at(5.0, -8.6, FY), at(2.2, -12.2, FY)], onStart: step(3, 'compliance') },
+    { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
+    { kind: 'wait', d: 1.8 },
+    { kind: 'call', fn: () => { walker.visible = false; setBotTag('case file → Rating Team'); step(4, 'rating')(); } },
+    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.compliance), at(5.0, -5), at(18.2, -5), at(...BOT_PARK.rating)] },
+    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Rating Team'); step(5)(); } },
+    { kind: 'wait', d: 2.8 },
+    { kind: 'call', fn: () => { setBotTag('rating note → Committee'); step(6, 'committee')(); } },
+    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.rating), at(18.2, -5), at(32.5, -5), at(...BOT_PARK.committee)] },
+    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Committee'); drawRC('voting'); RC_PEOPLE.forEach(p => p.userData.play('vote')); } },
+    { kind: 'wait', d: 2.6 },
+    { kind: 'call', fn: () => { drawRC('done'); RC_PEOPLE.forEach(p => p.userData.play('sit')); setBotTag('parked · Committee'); } },
+    { kind: 'wait', d: 1.4 },
+    { kind: 'call', fn: () => { setPublished(true); step(7, 'published')(); youAreHere.visible = true; youAreHere.userData.want = true; } },
+    { kind: 'wait', d: 1.0 },
+  ];
+}
+document.getElementById('replay').onclick = () => { replay = { q: SCRIPT(), cur: null }; };
 function stepReplay(dt) {
   if (!replay) return;
-  const a = PATH[replay.i], b = PATH[replay.i + 1];
-  if (!b) { replay = null; youAreHere.visible = true; setStep(7); walker.userData.play?.('emote-yes'); return; }
-  if (b[2] !== replay.lastStep && replay.t === 0) {
-    replay.lastStep = b[2]; setStep(b[2]); flyTo(STEPS[b[2]].site, 1.4); replay.pause = 1.3;
+  let s = replay.cur;
+  if (!s) {
+    s = replay.cur = replay.q.shift();
+    if (!s) { replay = null; setStep(7); return; }
+    s.t = 0; s.i = 0; s.onStart?.();
+    if (s.kind === 'call') { s.fn(); replay.cur = null; return; }
   }
-  if (replay.pause > 0) { replay.pause -= dt; walker.userData.play?.('interact-right'); return; }
-  const inCar = replay.i >= 2 && replay.i < 4;
+  if (s.kind === 'wait') { s.t += dt; if (s.t >= s.d) replay.cur = null; return; }
+  const a = s.path[s.i], b = s.path[s.i + 1];
+  if (!b) { replay.cur = null; s.obj.userData.play?.('idle'); return; }
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || .01;
-  replay.t = Math.min(1, replay.t + dt * (inCar ? 10 : 3.4) / len);
-  const x = a[0] + (b[0] - a[0]) * replay.t, z = a[1] + (b[1] - a[1]) * replay.t;
-  walker.position.set(x, replay.i >= 5 ? FY : 0, z);
-  walker.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
-  walker.visible = !inCar;
-  if (inCar) { car.position.set(x, 0, ROAD_Z + 1.8); car.rotation.y = 0; }
-  const sw = Math.sin(T * 8.5) * .6;
-  walker.userData.play?.('walk', .15);
-  wl.forEach(l => l.rotation.x = l.userData.leg * sw); wa.forEach(r => r.rotation.x = -r.userData.arm * sw * .6);
-  if (replay.t >= 1) { replay.i++; replay.t = 0; }
+  s.t = Math.min(1, s.t + dt * s.speed / len);
+  s.obj.position.set(a[0] + (b[0] - a[0]) * s.t, a[2] + (b[2] - a[2]) * s.t, a[1] + (b[1] - a[1]) * s.t);
+  if (s.turn !== false) s.obj.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
+  if (s.anim) s.obj.userData.play?.(s.anim);
+  if (s.t >= 1) { s.i++; s.t = 0; }
 }
 
 // ================================================================ ambient life
@@ -821,13 +1003,13 @@ const clock = new THREE.Clock();
 let T = 0;
 function ambient(dt) {
   T += dt;
-  if (!replay) { car.position.x = -30 + ((T * 5) % 60); car.position.z = ROAD_Z + 1.8; }
+  if (!replay) { car.position.x = -70 + ((T * 6) % 100); car.position.z = CAR_Z; }
   traffic[0].position.x = 40 - ((T * 6) % 110); traffic[1].position.x = -20 - ((T * 4.5 + 40) % 110) + 60;
-  bot.position.x = 6 + Math.sin(T * .55) * 2.2; bot.rotation.y = Math.cos(T * .55) > 0 ? Math.PI / 2 : -Math.PI / 2;
   const d = new Date(); document.getElementById('clock').textContent = 'Live ' + d.toTimeString().slice(0, 5);
 }
 
 // ================================================================ loop
+finalState();
 setStep(7);
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); });
 addEventListener('keydown', e => { if (e.key === '/') { e.preventDefault(); document.getElementById('q').focus(); } });
@@ -838,6 +1020,7 @@ function frame(dt) {
     if (fly.t >= 1) fly = null;
   }
   for (const m of mixers) m.update(dt);
+  animateChars(T);
   ambient(dt); stepReplay(dt); updateShell(dt);
   controls.update();
   renderer.render(scene, camera); labels.render(scene, camera);
