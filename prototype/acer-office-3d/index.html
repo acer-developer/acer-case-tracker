@@ -228,7 +228,7 @@ function model(key, x, z, { ry = 0, s = FURN, y = 0, parent = null, sx = 1, sz =
   const b = new THREE.Box3().setFromObject(inner), c = b.getCenter(new THREE.Vector3());
   inner.position.set(-c.x, -b.min.y, -c.z);
   const g = new THREE.Group(); g.add(inner);
-  g.scale.set(s * sx, s * sy, s * sz); g.position.set(x, y, z); g.rotation.y = ry;
+  g.scale.set(s * sx, s * sy, s * sz); g.position.set(x, y, z); g.rotation.y = ry; g.name = key;
   (parent || scene).add(g);
   return g;
 }
@@ -548,7 +548,7 @@ const CLIENT = { x: -46, z: -2 };
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
   box(6, .17, 3.4, C.grass, X - 7.5, 0, Z + 7.5, scene, .05);
   box(6, .17, 3.4, C.grass, X + 7.5, 0, Z + 7.5, scene, .05);
-  const b = group(X, 0, Z - 3);
+  const b = group(X, 0, Z - 3); b.name = 'Client office';
   const tw = model('tower', 0, 0, { parent: b, s: 6.2 });
   const tb = tw ? new THREE.Box3().setFromObject(tw).getSize(new THREE.Vector3()) : new THREE.Vector3(8, 25, 8);
   if (tw) info(tw, { kind: 'Client HQ', icon: '🏢', title: 'ABC Infrastructure Ltd.', sub: 'Client · Bank Loan ₹ 450 Cr', chip: ['BD meeting done', ''], rows: [['Sector', 'Infrastructure / EPC'], ['Relationship', 'New client'], ['Deal owner', 'Rohan Mehta (BD)'], ['Address', 'BKC, Mumbai']] });
@@ -603,7 +603,7 @@ const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e9eef4
 const A = { x0: -8, x1: 44, z0: -24, z1: 9 };
 box(A.x1 - A.x0 + 1.6, .22, A.z1 - A.z0 + 1.6, '#ffffff', (A.x0 + A.x1) / 2, 0, (A.z0 + A.z1) / 2, scene, .1);
 const FY = .22;
-const office = group(0, FY, 0);
+const office = group(0, FY, 0); office.name = 'ACER office';
 const ROOMS = {};
 const GLASS = new THREE.MeshStandardMaterial({ color: '#cfeaf2', transparent: true, opacity: .3, roughness: .08, metalness: .1 });
 const W = (a, b, c, d, o) => wall(a, b, c, d, { parent: office, ...o });
@@ -613,7 +613,7 @@ box(40, .025, 3.0, '#dbe4ee', 13, 0, -8.5, office, .01);
 for (const x of [3.3, 16, 28.7]) box(1.6, .026, 4.2, '#dbe4ee', x, 0, -10.6, office, .01);
 function ribbon(text, x, z, w = 4.4) {
   // standing name plate on top of the back wall: never cut by the wall or the room screens
-  const h = w * 200 / 1024, g = group(x, 3.45 + h / 2, z, 0, office);
+  const h = w * 200 / 1024, g = group(x, 3.45 + h / 2, z, 0, office); g.name = `Sign ${text}`;
   const t = canvasTex(1024, 200, (c, cw, ch) => {
     c.fillStyle = '#3AA4A9'; c.beginPath(); c.moveTo(30, 0); c.lineTo(cw, 0); c.lineTo(cw - 30, ch); c.lineTo(0, ch); c.closePath(); c.fill();
     let size = 88; c.font = `800 ${size}px Inter, Arial`;
@@ -627,6 +627,7 @@ function ribbon(text, x, z, w = 4.4) {
 /** A compact room cube: thick white walls cut to different heights, low front with glass. */
 function cube(key, name, x0, z0, x1, z1, { glass = false, open = 'front', door = null, tint = '#f6f9fc', data = {} } = {}) {
   const f = mesh(new THREE.BoxGeometry(x1 - x0, .04, z1 - z0), tint, (x0 + x1) / 2, .02, (z0 + z1) / 2, office); f.castShadow = false;
+  f.name = `Floor ${name}`;
   ROOMS[key] = { name, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, x0, z0, x1, z1, mesh: f };
   info(f, { kind: 'Room', icon: '▦', title: name, ...data });
   const col = glass ? GLASS : '#ffffff', t = glass ? .12 : .35;
@@ -658,7 +659,7 @@ W(A.x0, A.z1, A.x1, A.z1, { color: OUT, h: .6, doors: [[8, 11.2]] });
 const sign = plane(9, 2, textTex('ACER', { size: 190, color: '#ffffff', spacing: 30 }), A.x0 - .17, 2.0, -12, office, true);
 sign.visible = false;
 // ---- upper floors: glass office tower that fades away when you look inside
-const acerShell = group(0, FY, 0);
+const acerShell = group(0, FY, 0); acerShell.name = 'ACER building shell';
 const shellMats = [];
 const SM = (c, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: c, roughness: .35, metalness: .05, transparent: true, ...o }); m.userData.base = m.opacity; shellMats.push(m); return m; };
 const mGlass = SM('#7cc4cb', { opacity: .62, roughness: .1, metalness: .2 }), mSlab = SM('#ffffff'), mFin = SM('#f4f8fb'), mRoof = SM('#e3e9f2'), mTeal = SM('#3AA4A9');
@@ -1265,6 +1266,7 @@ if (new URLSearchParams(location.search).has('hero')) {
   bot.traverse(o => { if (o.isCSS2DObject) { o.userData.want = false; } });
   window.__flyNow('hero');
 }
+window.__scene = scene; // lets tools (e.g. the Blender export) read the scene
 window.__ready = true;
 </script>
 </body>
