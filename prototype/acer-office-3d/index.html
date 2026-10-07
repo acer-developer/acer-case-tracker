@@ -124,11 +124,9 @@
     </div>
   </div>
   <div class="live" id="clock">Live 10:42</div>
-  <div class="seg" id="viewSeg"><button data-view="ED" class="on">ED</button><button data-view="CRO">CRO</button></div>
-  <div class="src" id="dataSrc">sample data</div>
+  <div class="src" id="dataSrc">Zoho CRM</div>
   <div class="sp"></div>
   <button class="btn" id="replay">▶ Replay Journey</button>
-  <div class="user"><div class="avatar">ED</div><div>Executive Director<span>Admin · ED | CRO</span></div></div>
 </div>
 
 <div class="kpis">
@@ -163,12 +161,35 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { ED_STAGES, CRO_STAGES, classify, alerts, ratingText } from './js/stages.js';
+import { loadCases } from './js/zoho-cases.js';
 
-// ================================================================ case data (live Zoho CRM via api/cases, else sample)
-let DATA = null;
-for (const f of ['api/cases', 'data/sample-cases.json']) {
-  try { const r = await fetch(f, { cache: 'no-store' }); if (r.ok) { DATA = await r.json(); break; } } catch (e) { /* try next */ }
+// ================================================================ case data — live from Zoho CRM, never stored
+// 1) on claude.ai: the viewer's own Zoho CRM connector · 2) self-hosted: server/server.mjs → api/cases
+const boot = document.createElement('div');
+boot.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;font:600 15px Inter,system-ui,sans-serif;color:#2D6A67;background:#eef6f8;z-index:50';
+boot.textContent = 'Reading live data from Zoho CRM…'; document.body.appendChild(boot);
+let liveError = null;
+async function viaConnector() {
+  if (!window.claude?.use) return null;
+  const mcp = await window.claude.use('mcp');
+  if (!mcp) return null;
+  const coql = async (q) => {
+    const r = await mcp.callTool('Zoho CRM', 'executeCOQLQuery', { body: { select_query: q } }, { cache: false });
+    const p = r.payload; return (p && typeof p === 'object' ? (p.data && !Array.isArray(p.data) ? p.data : p) : null) || {};
+  };
+  return loadCases(coql);
 }
+async function viaServer() {
+  const r = await fetch('api/cases', { cache: 'no-store' });
+  if (!r.ok) throw { code: r.status === 502 ? 'zoho_unavailable' : 'no_server' };
+  return r.json();
+}
+async function readLive() {
+  try { const d = await viaConnector(); if (d) return d; } catch (e) { liveError = e; return null; }
+  try { return await viaServer(); } catch (e) { liveError = liveError || e; return null; }
+}
+let DATA = await readLive();
+boot.remove();
 const ALL_CASES = (DATA?.cases || []).map(c => ({ ...c, k: classify(c), al: alerts(c) }));
 const CASES = ALL_CASES.filter(c => c.k);
 let currentCase = CASES.find(c => /ABC Infrastructure/i.test(c.company)) || CASES[0];
@@ -589,12 +610,17 @@ box(A.x1 - A.x0 - 1, .02, A.z1 - A.z0 - 1, '#eef3f8', (A.x0 + A.x1) / 2, 0, (A.z
 box(40, .025, 3.0, '#dbe4ee', 13, 0, -8.5, office, .01);
 for (const x of [3.3, 16, 28.7]) box(1.6, .026, 4.2, '#dbe4ee', x, 0, -10.6, office, .01);
 function ribbon(text, x, z, w = 4.4) {
-  const g = group(x, 3.05, z + .2, 0, office);
+  // standing name plate on top of the back wall: never cut by the wall or the room screens
+  const h = w * 200 / 1024, g = group(x, 3.45 + h / 2, z, 0, office);
   const t = canvasTex(1024, 200, (c, cw, ch) => {
     c.fillStyle = '#3AA4A9'; c.beginPath(); c.moveTo(30, 0); c.lineTo(cw, 0); c.lineTo(cw - 30, ch); c.lineTo(0, ch); c.closePath(); c.fill();
-    c.fillStyle = '#ffffff'; c.font = '800 88px Inter, Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cw / 2, ch / 2 + 4);
+    let size = 88; c.font = `800 ${size}px Inter, Arial`;
+    const fit = (cw - 140) / c.measureText(text).width; if (fit < 1) { size = Math.floor(size * fit); c.font = `800 ${size}px Inter, Arial`; }
+    c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cw / 2, ch / 2 + 4);
   });
-  const m = plane(w, w * 200 / 1024, t, 0, .3, 0, g, true); m.rotation.x = -.25;
+  const m = plane(w, h, t, 0, 0, 0, g, true); m.material.side = THREE.DoubleSide;
+  const post = (px) => mesh(new THREE.BoxGeometry(.08, .45, .08), '#2D6A67', px, -h / 2 - .2, 0, g);
+  post(-w * .35); post(w * .35);
 }
 /** A compact room cube: thick white walls cut to different heights, low front with glass. */
 function cube(key, name, x0, z0, x1, z1, { glass = false, open = 'front', door = null, tint = '#f6f9fc', data = {} } = {}) {
@@ -618,7 +644,7 @@ function cube(key, name, x0, z0, x1, z1, { glass = false, open = 'front', door =
 const COMP = cube('compliance', 'Compliance', -3, -20, 5, -13, { door: [5.4, 7.2], data: { sub: 'Mandate & accounts review', chip: ['Compliance approved ✓', ''], rows: [['Cases here', '5'], ['Statuses', 'Sent to CCO · Accounts Review · CCO Approved'], ['Owner', 'Compliance user']] } });
 const RATE = cube('rating', 'Rating Team', 11, -20, 21, -13, { door: [4, 6], data: { sub: 'Boardroom · lead analysts', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] } });
 const COMM = cube('committee', 'Rating Committee', 27, -20, 35, -13, { glass: true, door: [.8, 2.6], tint: '#f3f7fb', data: { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] } });
-const PROP = cube('proposal', 'Reception · Proposal', -3, -4, 5, 3, { open: 'none', data: { sub: 'Front desk + deal approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
+const PROP = cube('proposal', 'Proposal', -3, -4, 5, 3, { open: 'none', data: { sub: 'Front desk + deal approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
 const PUB = cube('published', 'Published Lobby', 27, -4, 36, 3, { open: 'none', data: { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
 
 // outer glass walls of the building (low, so the interior reads from above when opened)
@@ -784,10 +810,10 @@ const RC_PEOPLE = [];
 [30.3, 31.7].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -15.1, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] })));
 RC_PEOPLE.push(seatedAt(33.8, -16.4, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
 RC_PEOPLE.forEach(p => p.userData.play('sit'));
-// ---------------- Reception · Proposal cube
+// ---------------- Proposal cube
 box(2.6, 1.05, .7, '#ffffff', -.6, 0, 1.6, office, .08);
 box(2.62, .22, .72, C.teal, -.6, .55, 1.6, office, .04);
-seatedAt(-.6, .6, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Reception', sub: 'Front desk · visitors & couriers', chip: ['On duty', ''], rows: [['Visitors today', '6']] });
+seatedAt(-.6, .6, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Proposal desk', sub: 'Receives proposals from BD', chip: ['On duty', ''], rows: [['Role', 'Proposal intake']] });
 desk(-1.4, -3.3, 0, { parent: office });
 seatedAt(-1.4, -2.4, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
 desk(1.8, -3.3, 0, { parent: office });
@@ -836,8 +862,6 @@ function pathDashes(pts, y, parent) {
     for (let t = .3; t < len; t += .8) { const d = new THREE.Mesh(new THREE.PlaneGeometry(.35, .1), dm); d.rotation.set(-Math.PI / 2, 0, -ang); d.position.set(ax + Math.cos(ang) * t, y, az + Math.sin(ang) * t); parent.add(d); }
   }
 }
-numDisc(1, CLIENT.x + 1, CLIENT.z + 7.4, .18); numDisc(2, -18, ROAD_Z - 4.2, .2);
-[[3, 3.6, 4.6], [4, 3.3, -11.4], [5, 9.5, -8.5], [6, 16, -11.4], [7, 28.7, -11.4], [8, 26.4, 1.6]].forEach(([n, x, z]) => numDisc(n, x, z, .06, office));
 
 // ---- robot courier
 function robot(x, z, ry = 0, parent = scene) {
@@ -895,6 +919,7 @@ function hideDest() { destPad.visible = false; }
 // ================================================================ detail card
 const detail = document.getElementById('detail');
 function showInfo(d) {
+  detail.style.display = d ? '' : 'none'; if (!d) return;
   detail.innerHTML = `<div class="hd"><div class="ico">${d.icon || '◆'}</div><div><div class="eb">${d.kind}</div><h3>${d.title}</h3><div class="sub">${d.sub || ''}</div></div><button class="x" id="x">✕</button></div>
     ${d.chip ? `<div class="st"><span class="chip ${d.chip[1]}">${d.chip[0]}</span>${d.progress != null ? `<span>${d.progress}%</span>` : ''}</div>` : ''}
     ${d.progress != null ? `<div class="pbar"><i style="width:${d.progress}%"></i></div>` : ''}
@@ -902,11 +927,11 @@ function showInfo(d) {
   document.getElementById('x').onclick = () => { showInfo(CASE_INFO()); showBrackets(null); };
 }
 const CASE_INFO = () => {
-  const c = currentCase; if (!c) return { kind: 'No data', title: 'No cases loaded', rows: [] };
+  const c = currentCase; if (!c) return null;
   const k = c.k, pay = k.pay, rating = k.ratingVisible ? ratingText(c) : 'Hidden until RC vote';
-  const rows = [['ED stage', k.ed], ['CRO stage', k.cro || '—'], ['Status', k.status], ['With', k.withWhom],
+  const rows = [['Stage', k.ed], ['Team stage', k.cro || '—'], ['Status', k.status], ['With', k.withWhom],
     ['Deal owner', c.deal?.owner || '—'], ['Lead analyst', c.entity?.leadAnalyst || '—'], ['Invoice', c.invoice ? `${pay.status} · ₹ ${(pay.paid / 1e5).toFixed(1)} L paid` : 'No invoice'], ['Rating', rating]];
-  if (viewMode === 'CRO' && k.survStage) rows.push(['Surveillance', k.survStage]);
+  if (k.survStage) rows.push(['Surveillance', k.survStage]);
   return { kind: `Case · ${c.caseType || 'Rating Process'}`, icon: '📁', title: c.company, sub: c.instrument || '', chip: [k.ratingVisible ? `${k.ed} · ${ratingText(c)}` : `${k.ed} · ${k.status}`, c.al.length ? 'red' : ''], progress: Math.round(100 * (stepNow + 1) / 8), rows };
 };
 
@@ -923,16 +948,16 @@ const STEPS = [
 ];
 let stepNow = 7;
 const stepsEl = document.getElementById('steps');
-STEPS.forEach((st, i) => { const d = document.createElement('div'); d.className = 'step'; d.innerHTML = `<div class="dot">${i + 1}</div><div class="t">${st.t}</div><div class="s">${st.s}</div>`; stepsEl.appendChild(d); });
+STEPS.forEach((st, i) => { const d = document.createElement('div'); d.className = 'step'; d.innerHTML = `<div class="dot"></div><div class="t">${st.t}</div><div class="s">${st.s}</div>`; stepsEl.appendChild(d); });
 function setStep(n) {
   stepNow = Math.min(n, 7);
   [...stepsEl.querySelectorAll('.step')].forEach((el, i) => {
     const done = i < n || (n >= 7 && i === 7 && !replay);
     el.className = 'step' + (done ? ' done' : i === n ? ' now' : '');
-    el.querySelector('.dot').textContent = done ? '✓' : i + 1;
+    el.querySelector('.dot').textContent = done ? '✓' : '';
   });
   document.getElementById('prog').style.width = (87.5 * stepNow / 7) + '%';
-  document.getElementById('j-now').textContent = `Step ${stepNow + 1} of 8 · ${STEPS[stepNow].where}`;
+  document.getElementById('j-now').textContent = STEPS[stepNow].where;
   renderStages();
   showInfo(CASE_INFO());
 }
@@ -944,7 +969,7 @@ function renderStages() {
   if (!replay && viewMode === 'CRO' && currentCase?.k.survStage && currentCase.k.ed === 'Published') cur = 'Surveillance';
   const idx = list.indexOf(cur);
   document.getElementById('bizStages').innerHTML = list.map((n, i) => `<div class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${i < idx ? '✓ ' : ''}${n}</div>`).join('');
-  document.getElementById('j-title').textContent = `▣ ${currentCase?.company || 'Company'} · ${viewMode} view`;
+  document.getElementById('j-title').textContent = `▣ ${currentCase?.company || 'Company'}`;
 }
 
 // ================================================================ list panel
@@ -954,7 +979,7 @@ let listTab = 'cases';
 function renderList(tab = listTab) {
   listTab = tab;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  const att = ALL_CASES.flatMap(c => c.al.filter(a => a.view === viewMode).map(a => ({ c, a })));
+  const att = ALL_CASES.flatMap(c => c.al.map(a => ({ c, a })));
   document.getElementById('tab-cases').textContent = `Cases ${CASES.length}`;
   document.getElementById('tab-att').textContent = `Attention ${att.length}`;
   let rows = [];
@@ -971,13 +996,8 @@ function renderKPIs() {
   document.getElementById('k-deals').textContent = CASES.filter(c => c.k.ed === 'Pitching' || c.k.ed === 'Pricing').length;
   document.getElementById('k-wip').textContent = CASES.filter(c => c.k.ed === 'Rating WIP').length;
   document.getElementById('k-pub').textContent = CASES.filter(c => c.k.ed === 'Published').length;
-  document.getElementById('k-att').textContent = ALL_CASES.reduce((n, c) => n + c.al.filter(a => a.view === viewMode).length, 0);
+  document.getElementById('k-att').textContent = ALL_CASES.reduce((n, c) => n + c.al.length, 0);
 }
-// ED | CRO switch
-document.querySelectorAll('#viewSeg button').forEach(b => b.onclick = () => {
-  viewMode = b.dataset.view; document.querySelectorAll('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
-  renderKPIs(); renderList(); renderStages(); showInfo(CASE_INFO());
-});
 // search
 const q = document.getElementById('q'), results = document.getElementById('results');
 function renderResults() {
@@ -990,27 +1010,40 @@ function renderResults() {
 q.addEventListener('focus', renderResults); q.addEventListener('input', renderResults);
 q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
 q.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = q.value.trim().toLowerCase(); const c = CASES.find(x => x.company.toLowerCase().includes(t)); if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } } });
+const LIVE_HELP = {
+  needs_reauth: 'Zoho CRM connection expired — reconnect it in claude.ai Settings → Connectors.',
+  server_not_connected: 'Add the Zoho CRM connector in claude.ai Settings → Connectors to see live cases.',
+  selection_required: 'Pick which Zoho CRM connection this page should use.',
+  not_in_manifest: 'Zoho CRM is turned off for this page — allow it from the page’s Permissions menu.',
+  consent_required: 'Allow Zoho CRM for this page to see live cases.',
+  blocked_by_policy: 'Your organisation blocks Zoho CRM here.',
+  server_unavailable: 'Zoho CRM is not answering right now — try again in a minute.',
+  zoho_unavailable: 'Zoho CRM is not answering right now — try again in a minute.',
+  tool_error: 'Zoho CRM refused the query.',
+};
 function showSource() {
   const el = document.getElementById('dataSrc');
-  el.textContent = DATA?.source === 'zoho' ? `Zoho CRM live · ${new Date(DATA.generated).toLocaleTimeString().slice(0, 5)}` : 'sample data';
-  el.classList.toggle('live', DATA?.source === 'zoho');
+  el.textContent = DATA ? `Zoho CRM live · ${new Date(DATA.generated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'no live data';
+  el.classList.toggle('live', !!DATA);
+  let b = document.getElementById('liveMsg');
+  if (DATA) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'liveMsg'; b.className = 'card'; b.style.cssText = 'position:fixed;left:50%;top:84px;transform:translateX(-50%);padding:12px 18px;z-index:20;font-size:13px;max-width:560px;text-align:center'; document.body.appendChild(b); }
+  b.textContent = LIVE_HELP[liveError?.code] || 'Live Zoho CRM data shows when this page is opened in Claude with the Zoho CRM connector, or run with server/server.mjs.';
 }
 showSource();
 // live mode: re-read Zoho every minute and whenever search opens (at most every 15 s); nothing is stored
 let lastLive = Date.now();
 async function refreshLive() {
-  if (DATA?.source !== 'zoho' || Date.now() - lastLive < 15000) return;
+  if (!DATA || Date.now() - lastLive < 15000) return;
   lastLive = Date.now();
-  try {
-    const r = await fetch('api/cases', { cache: 'no-store' }); if (!r.ok) return;
-    DATA = await r.json();
-    const all = DATA.cases.map(c => ({ ...c, k: classify(c), al: alerts(c) }));
-    ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
-    const cur = CASES.find(c => c.id === currentCase?.id);
-    if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
-    renderKPIs(); renderList(); showInfo(CASE_INFO()); showSource();
-    if (document.activeElement === q) renderResults();
-  } catch (e) { /* keep last data */ }
+  const d = await readLive(); if (!d) return; // keep last data
+  DATA = d;
+  const all = DATA.cases.map(c => ({ ...c, k: classify(c), al: alerts(c) }));
+  ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
+  const cur = CASES.find(c => c.id === currentCase?.id);
+  if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
+  renderKPIs(); renderList(); showInfo(CASE_INFO()); showSource();
+  if (document.activeElement === q) renderResults();
 }
 setInterval(refreshLive, 60000);
 q.addEventListener('focus', refreshLive);
