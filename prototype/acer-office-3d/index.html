@@ -161,12 +161,16 @@ const ASSET_LIST = {
   tower: 'city/building-skyscraper-c', towerB: 'city/building-skyscraper-a', towerD: 'city/building-skyscraper-d', towerE: 'city/building-skyscraper-e',
   bldA: 'city/building-a', bldC: 'city/building-c', bldE: 'city/building-e', bldH: 'city/building-h',
   lowA: 'city/low-detail-building-a', lowC: 'city/low-detail-building-c', lowW: 'city/low-detail-building-wide-a',
+  ...Object.fromEntries(['male-a', 'male-b', 'male-d', 'male-e', 'male-f', 'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'].map(k => ['ch-' + k, 'characters/character-' + k])),
 };
 const ASSETS = {};
 await Promise.all(Object.entries(ASSET_LIST).map(async ([k, f]) => {
   try { ASSETS[k] = await gltfLoader.loadAsync(`assets/${f}.glb`); } catch (e) { console.warn('asset failed', f, e); }
 }));
 const FURN = 1.95; // Kenney furniture kit → metres
+const SIT_Y = .3;
+let OFFICE_TEX = null;
+try { OFFICE_TEX = await new THREE.TextureLoader().loadAsync('assets/characters/Textures/colormap-office.png'); OFFICE_TEX.flipY = false; OFFICE_TEX.colorSpace = THREE.SRGBColorSpace; } catch (e) { console.warn('office texture', e); }
 /** Place a static model with its footprint centred on (x, z). */
 function model(key, x, z, { ry = 0, s = FURN, y = 0, parent = null, sx = 1, sz = 1, sy = 1 } = {}) {
   const src = ASSETS[key]; if (!src) return null;
@@ -197,8 +201,8 @@ Object.assign(labels.domElement.style, { position: 'fixed', inset: '0', pointerE
 app.appendChild(labels.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#dfe6f4');
-scene.fog = new THREE.Fog('#dfe6f4', 90, 200);
+scene.background = new THREE.Color('#d9e1f4');
+scene.fog = new THREE.Fog('#d9e1f4', 110, 230);
 const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, .5, 500);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.maxPolarAngle = 1.18; controls.minDistance = 10; controls.maxDistance = 170;
@@ -244,7 +248,7 @@ const clickables = [];
 function info(obj, data) { obj.userData.info = data; clickables.push(obj); return obj; }
 
 const C = {
-  ground: '#dfe6f4', grass: '#cfe6d8', road: '#c7cfe2', walk: '#eef2fa', line: '#ffffff',
+  ground: '#d2dbf1', grass: '#c3e6cf', road: '#bcc6de', walk: '#eef2fa', line: '#ffffff',
   floor: '#f8fafd', part: '#f1f5fb', teal: '#3AA4A9', tealD: '#2D6A67', tealL: '#7cc9cc',
   desk: '#f3f5f8', leg: '#9aa6b4', dark: '#39414c', chair: '#55606d', skin: '#f2c7a4',
 };
@@ -284,7 +288,7 @@ fence(38, 62, ROAD_Z - 9);
 // ================================================================ people
 const SUITS = ['#2e3b55', '#45506a', '#283246', '#5b6680', '#3c4a63'];
 const HAIRS = ['#2b2420', '#4a3324', '#1f1f1f', '#6b4a2b', '#3a2a20'];
-function person({ x = 0, z = 0, ry = 0, suit = '#2e3b55', hair = '#2b2420', female = false, tie = null, seated = false,
+function personPrim({ x = 0, z = 0, ry = 0, suit = '#2e3b55', hair = '#2b2420', female = false, tie = null, seated = false,
                   carry = null, handOut = false, parent = scene, scale = 1.15 } = {}) {
   const g = group(x, 0, z, ry, parent); g.scale.setScalar(scale);
   const trousers = '#262d3a', shoe = '#1b1f26';
@@ -322,13 +326,51 @@ function person({ x = 0, z = 0, ry = 0, suit = '#2e3b55', hair = '#2b2420', fema
   if (carry) { box(.36, .46, .05, carry, -.33, ty - .5, .08, g, .02).rotation.z = .1; box(.22, .04, .01, '#fff', -.33, ty - .3, .11, g, .005); }
   return g;
 }
+
+// ---- animated office characters (Kenney Mini Characters, CC0, clothes repainted as office wear)
+const MALES = ['male-d', 'male-a', 'male-e', 'male-f', 'male-b'], FEMALES = ['female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'];
+const mixers = [];
+const CH_SCALE = 1.85;
+function person(opts = {}) {
+  const { x = 0, z = 0, ry = 0, female = false, seated = false, carry = null, handOut = false, parent = scene, variant = null, model: mk = null } = opts;
+  let key = mk;
+  if (!key) {
+    const pool = female ? FEMALES : MALES;
+    const v = variant != null ? variant : Math.abs(Math.round(x * 7 + z * 13));
+    key = (opts.tie === C.teal && !female) ? 'male-d' : pool[v % pool.length];
+  }
+  const src = ASSETS['ch-' + key];
+  if (!src) return personPrim(opts);
+  const g = group(x, 0, z, ry, parent);
+  const body = SkeletonUtils.clone(src.scene);
+  body.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (OFFICE_TEX) { o.material = o.material.clone(); o.material.map = OFFICE_TEX; } } });
+  body.scale.setScalar(CH_SCALE);
+  g.add(body);
+  const mixer = new THREE.AnimationMixer(body); mixers.push(mixer);
+  const acts = {}; for (const c of src.animations) acts[c.name] = mixer.clipAction(c);
+  let cur = null;
+  g.userData.play = (name, fade = .25) => {
+    const a = acts[name]; if (!a || a === cur) return;
+    a.reset().fadeIn(fade).play(); if (cur) cur.fadeOut(fade); cur = a;
+  };
+  g.userData.play(seated ? 'sit' : handOut ? 'interact-right' : carry ? 'holding-right' : 'idle', 0);
+  mixer.update(Math.random() * 2);
+  if (seated) body.position.y = SIT_Y;
+  if (carry) {
+    const hand = body.getObjectByName('arm-right');
+    const f = new THREE.Mesh(RB(.13, .17, .02, .01), M(carry)); f.castShadow = true;
+    f.position.set(0, -.12, .07); (hand || body).add(f);
+  }
+  g.userData.isCharacter = true;
+  return g;
+}
 function chair(x, z, ry = 0, parent = scene) {
   // Kenney chairs face -z by default; our seated people face +z of the chair group
   model('chairDesk', x, z, { ry: ry + Math.PI, parent, s: FURN * .95 });
 }
 function seatedAt(x, z, ry, i, female = false, parent = scene, data = null) {
   chair(x, z, ry, parent);
-  const p = person({ x, z, ry, suit: SUITS[i % 5], hair: HAIRS[i % 5], seated: true, female, parent, scale: 1.1 });
+  const p = person({ x, z, ry, suit: SUITS[i % 5], hair: HAIRS[i % 5], seated: true, female, parent, scale: 1.1, variant: i });
   if (data) info(p, data);
   return p;
 }
@@ -755,11 +797,11 @@ document.getElementById('replay').onclick = () => {
 function stepReplay(dt) {
   if (!replay) return;
   const a = PATH[replay.i], b = PATH[replay.i + 1];
-  if (!b) { replay = null; youAreHere.visible = true; setStep(7); wl.forEach(l => l.rotation.x = 0); return; }
+  if (!b) { replay = null; youAreHere.visible = true; setStep(7); walker.userData.play?.('emote-yes'); return; }
   if (b[2] !== replay.lastStep && replay.t === 0) {
     replay.lastStep = b[2]; setStep(b[2]); flyTo(STEPS[b[2]].site, 1.4); replay.pause = 1.3;
   }
-  if (replay.pause > 0) { replay.pause -= dt; wl.forEach(l => l.rotation.x = 0); return; }
+  if (replay.pause > 0) { replay.pause -= dt; walker.userData.play?.('interact-right'); return; }
   const inCar = replay.i >= 2 && replay.i < 4;
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || .01;
   replay.t = Math.min(1, replay.t + dt * (inCar ? 10 : 3.4) / len);
@@ -769,6 +811,7 @@ function stepReplay(dt) {
   walker.visible = !inCar;
   if (inCar) { car.position.set(x, 0, ROAD_Z + 1.8); car.rotation.y = 0; }
   const sw = Math.sin(T * 8.5) * .6;
+  walker.userData.play?.('walk', .15);
   wl.forEach(l => l.rotation.x = l.userData.leg * sw); wa.forEach(r => r.rotation.x = -r.userData.arm * sw * .6);
   if (replay.t >= 1) { replay.i++; replay.t = 0; }
 }
@@ -794,6 +837,7 @@ function frame(dt) {
     camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k);
     if (fly.t >= 1) fly = null;
   }
+  for (const m of mixers) m.update(dt);
   ambient(dt); stepReplay(dt); updateShell(dt);
   controls.update();
   renderer.render(scene, camera); labels.render(scene, camera);
