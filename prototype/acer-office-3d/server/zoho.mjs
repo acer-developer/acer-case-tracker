@@ -1,22 +1,11 @@
-#!/usr/bin/env node
-// Pulls ACER cases from Zoho CRM and writes data/cases.json for the 3D office.
+// Live Zoho CRM reader for the ACER office. Nothing is stored: every call reads Zoho via the API.
 // Server-side only: credentials come from env vars and never reach the browser.
 //
 //   ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN   (Zoho API console → Self Client)
 //   ZOHO_DC = in | com | eu | com.au | jp                    (default: in)
 //
-//   node sync/zoho-sync.mjs [--out data/cases.json] [--every 10]   (--every = minutes, keeps running)
-//
 // Chain: Accounts ← Deals.Account_Name ← Mandates.Deal_rec ← Entity.Mandate ← RC_Review.Entity
 //        Entity ↔ Surveillances.Entity_rec · Invoice (CustomModule5001).Account_Name → Accounts
-import { writeFile, mkdir } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
-const OUT = resolve(HERE, '..', arg('--out', 'data/cases.json'));
-const EVERY = Number(arg('--every', 0));
 const DC = process.env.ZOHO_DC || 'in';
 const ACCOUNTS = `https://accounts.zoho.${DC}`, API = `https://www.zohoapis.${DC}/crm/v6`;
 
@@ -62,7 +51,8 @@ async function users() {
   }
 }
 
-async function sync() {
+/** Reads Zoho now and returns { source, generated, cases }. */
+export async function fetchCases() {
   const [U, deals, mandates, entities, rcs, survs, invoices] = await Promise.all([
     users(),
     coql(['Deal_Name', 'Account_Name', 'Account_Name.Account_Name', 'Stage', 'Owner', 'BD_User', 'Type', 'Instrument_Category', 'Issue_Size_in_Cr', 'Modified_Time'], 'Deals'),
@@ -113,11 +103,5 @@ async function sync() {
   });
 
   for (const c of cases) if (c.mandate === null) delete c.mandate;
-  await mkdir(dirname(OUT), { recursive: true });
-  await writeFile(OUT, JSON.stringify({ source: 'zoho', generated: new Date().toISOString(), cases }, null, 1));
-  console.log(`${new Date().toISOString()} wrote ${cases.length} cases → ${OUT}`);
+  return { source: 'zoho', generated: new Date().toISOString(), cases };
 }
-
-const run = () => sync().catch((e) => { console.error(e.message); if (!EVERY) process.exitCode = 1; });
-await run();
-if (EVERY > 0) setInterval(run, EVERY * 60_000);

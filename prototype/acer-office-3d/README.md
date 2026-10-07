@@ -17,10 +17,10 @@ Then open the printed address (e.g. http://localhost:3000) in Chrome. Needs inte
 
 ## Live Zoho CRM data
 
-`sync/zoho-sync.mjs` reads Deals → Mandates → Entity → RC_Review, Surveillances and Invoices (CustomModule5001) via COQL and writes `data/cases.json` (gitignored). The page loads that file when present, else `data/sample-cases.json`.
+Nothing is stored. `server/server.mjs` serves the page plus `/api/cases`, which reads Zoho CRM on every call (Deals → Mandates → Entity → RC_Review, Surveillances, Invoices). The page loads `api/cases` on open, re-reads it every minute and when search opens, and falls back to `data/sample-cases.json` when there is no server (e.g. GitHub Pages).
 
 ```
-ZOHO_CLIENT_ID=… ZOHO_CLIENT_SECRET=… ZOHO_REFRESH_TOKEN=… ZOHO_DC=in node sync/zoho-sync.mjs --every 10
+ZOHO_CLIENT_ID=… ZOHO_CLIENT_SECRET=… ZOHO_REFRESH_TOKEN=… ZOHO_DC=in node server/server.mjs   # http://localhost:8080
 ```
 
-Create the credentials in the Zoho API console (Self Client, scopes `ZohoCRM.coql.READ,ZohoCRM.modules.READ,ZohoCRM.users.READ`). Run it on a private server next to the site — never on the public GitHub Pages copy, which ships sample data only.
+Create the credentials in the Zoho API console (Self Client, scopes `ZohoCRM.coql.READ,ZohoCRM.modules.READ,ZohoCRM.users.READ`). Host it somewhere private (behind ACER login), not on the public GitHub Pages copy.

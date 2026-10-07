@@ -164,9 +164,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { ED_STAGES, CRO_STAGES, classify, alerts, ratingText } from './js/stages.js';
 
-// ================================================================ case data (Zoho CRM snapshot → data/cases.json, else sample)
+// ================================================================ case data (live Zoho CRM via api/cases, else sample)
 let DATA = null;
-for (const f of ['data/cases.json', 'data/sample-cases.json']) {
+for (const f of ['api/cases', 'data/sample-cases.json']) {
   try { const r = await fetch(f, { cache: 'no-store' }); if (r.ok) { DATA = await r.json(); break; } } catch (e) { /* try next */ }
 }
 const ALL_CASES = (DATA?.cases || []).map(c => ({ ...c, k: classify(c), al: alerts(c) }));
@@ -990,8 +990,30 @@ function renderResults() {
 q.addEventListener('focus', renderResults); q.addEventListener('input', renderResults);
 q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
 q.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = q.value.trim().toLowerCase(); const c = CASES.find(x => x.company.toLowerCase().includes(t)); if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } } });
-document.getElementById('dataSrc').textContent = DATA?.source === 'zoho' ? `Zoho CRM · ${new Date(DATA.generated).toLocaleString()}` : 'sample data';
-if (DATA?.source === 'zoho') document.getElementById('dataSrc').classList.add('live');
+function showSource() {
+  const el = document.getElementById('dataSrc');
+  el.textContent = DATA?.source === 'zoho' ? `Zoho CRM live · ${new Date(DATA.generated).toLocaleTimeString().slice(0, 5)}` : 'sample data';
+  el.classList.toggle('live', DATA?.source === 'zoho');
+}
+showSource();
+// live mode: re-read Zoho every minute and whenever search opens (at most every 15 s); nothing is stored
+let lastLive = Date.now();
+async function refreshLive() {
+  if (DATA?.source !== 'zoho' || Date.now() - lastLive < 15000) return;
+  lastLive = Date.now();
+  try {
+    const r = await fetch('api/cases', { cache: 'no-store' }); if (!r.ok) return;
+    DATA = await r.json();
+    const all = DATA.cases.map(c => ({ ...c, k: classify(c), al: alerts(c) }));
+    ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
+    const cur = CASES.find(c => c.id === currentCase?.id);
+    if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
+    renderKPIs(); renderList(); showInfo(CASE_INFO()); showSource();
+    if (document.activeElement === q) renderResults();
+  } catch (e) { /* keep last data */ }
+}
+setInterval(refreshLive, 60000);
+q.addEventListener('focus', refreshLive);
 
 // ================================================================ camera views
 const VIEWS = {
