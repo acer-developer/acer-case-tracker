@@ -190,7 +190,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.1;
 app.appendChild(renderer.domElement);
 const labels = new CSS2DRenderer();
 labels.setSize(innerWidth, innerHeight);
@@ -198,8 +198,8 @@ Object.assign(labels.domElement.style, { position: 'fixed', inset: '0', pointerE
 app.appendChild(labels.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#d9e1f4');
-scene.fog = new THREE.Fog('#d9e1f4', 110, 230);
+scene.background = new THREE.Color('#d4eaf7');
+scene.fog = new THREE.Fog('#d4eaf7', 130, 260);
 const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, .5, 500);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.maxPolarAngle = 1.18; controls.minDistance = 10; controls.maxDistance = 170;
@@ -245,7 +245,7 @@ const clickables = [];
 function info(obj, data) { obj.userData.info = data; clickables.push(obj); return obj; }
 
 const C = {
-  ground: '#d2dbf1', grass: '#c3e6cf', road: '#bcc6de', walk: '#eef2fa', line: '#ffffff',
+  ground: '#d2e6f2', grass: '#c3e6cf', road: '#c3ccda', walk: '#eef2fa', line: '#ffffff',
   floor: '#f8fafd', part: '#f1f5fb', teal: '#3AA4A9', tealD: '#2D6A67', tealL: '#7cc9cc',
   desk: '#f3f5f8', leg: '#9aa6b4', dark: '#39414c', chair: '#55606d', skin: '#f2c7a4',
 };
@@ -292,6 +292,7 @@ const FEMALE_SUITS = ['#2D6A67', '#7a2e3a', '#3a4256', '#5d4a72', '#27324a'];
 const SHIRTS = ['#ffffff', '#e6f0fb', '#ffffff', '#f3efe6'];
 const TIES = ['#3AA4A9', '#8a2c3b', '#c08a2e', '#2f5f9e', '#3AA4A9'];
 const CHARS = [];
+const CH_S = 1.25;
 const mixers = [];
 const ANIM_ALIAS = { 'emote-yes': 'talk', 'interact-right': 'shake', 'holding-right': 'carry', 'sit': 'sit' };
 function person(opts = {}) {
@@ -302,7 +303,7 @@ function person(opts = {}) {
   const shirt = SHIRTS[v % SHIRTS.length];
   const hairC = opts.hair || HAIRS[v % HAIRS.length];
   const trousers = female ? skin : '#232a38';
-  const g = group(x, 0, z, ry, parent); g.scale.set(1.08, 1.12, 1.08);
+  const g = group(x, 0, z, ry, parent); g.scale.setScalar(CH_S);
   const S = (geo, c, px, py, pz, par, o) => mesh(geo, c, px, py, pz, par, o);
   const J = (par, px, py, pz) => { const q = new THREE.Group(); q.position.set(px, py, pz); par.add(q); return q; };
   const hips = J(g, 0, .86, 0);
@@ -340,10 +341,11 @@ function person(opts = {}) {
   }
   // head
   S(new THREE.CylinderGeometry(.06, .07, .1, 12), skin, 0, .58, 0, torso);
-  const head = J(torso, 0, .77, 0);
+  const head = J(torso, 0, .84, 0); head.scale.setScalar(1.3);
   const hd = S(new THREE.SphereGeometry(.2, 28, 22), skin, 0, 0, 0, head); hd.scale.set(1, 1.04, .97);
   for (const sd of [-1, 1]) {
-    const e = S(new THREE.SphereGeometry(.026, 12, 10), '#1d2128', sd * .072, .015, .18, head, { roughness: .3 }); e.scale.set(1, 1.35, .6);
+    S(new THREE.SphereGeometry(.036, 14, 12), '#ffffff', sd * .072, .015, .17, head, { roughness: .4 }).scale.set(1, 1.25, .5);
+    const e = S(new THREE.SphereGeometry(.024, 12, 10), '#1d2128', sd * .072, .012, .186, head, { roughness: .3 }); e.scale.set(1, 1.3, .5);
     S(new THREE.SphereGeometry(.008, 8, 6), '#ffffff', sd * .072 + .008, .03, .195, head, { emissive: '#ffffff', emissiveIntensity: .6 });
     const br = S(RB(.07, .016, .015, .006), hairC, sd * .075, .085, .18, head); br.rotation.z = -sd * .12;
     S(new THREE.SphereGeometry(.045, 10, 8), skin, sd * .197, 0, 0, head).scale.set(.55, 1, .9);
@@ -371,7 +373,7 @@ function person(opts = {}) {
   CHARS.push(g);
   return g;
 }
-const SEAT_Y = .5;
+const SEAT_Y = .42;
 function animateChars(t) {
   for (const c of CHARS) {
     if (!c.visible) continue;
@@ -488,7 +490,7 @@ const BACKDROP = [];
 
 // ================================================================ CLIENT SITE · ABC Infrastructure Ltd.
 const CLIENT_FIGS = [];
-const CLIENT = { x: -76, z: -2 };
+const CLIENT = { x: -46, z: -2 };
 (function clientSite() {
   const { x: X, z: Z } = CLIENT;
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
@@ -509,7 +511,7 @@ const CLIENT = { x: -76, z: -2 };
   const rs = plane(tb.x * 1.05, 1.6, textTex('ABC', { size: 200, color: '#ffffff', spacing: 20 }), 0, tb.y + 1.0, D / 2 - .2, b, true);
   plant(X - 5, Z + 4.4, 1.1); plant(X + 5, Z + 4.4, 1.1);
   // parked cars in the client car park
-  for (let i = 0; i < 3; i++) carModel({ x: X + 6 + i * 2.3, z: Z + 1, ry: Math.PI / 2, color: ['#ffffff', '#e8edf5', '#f2d8a7'][i], stripe: ['#4f7fd9', '#9aa6b4', '#c98a1b'][i] });
+  for (let i = 0; i < 3; i++) carModel({ x: X + 6 + i * 2.3, z: Z + 1, ry: Math.PI / 2, color: ['#ffffff', '#e8edf5', '#f3f5f8'][i], stripe: ['#2f5f9e', '#9aa6b4', '#3a4256'][i], kind: 'acer' });
   // the meeting
   const client = person({ x: X - .8, z: Z + 5.4, ry: Math.PI * .35, suit: '#5b6680', hair: '#6b4a2b', tie: '#b08a5a', handOut: true });
   info(client, { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['In meeting', ''], rows: [['Meeting', 'Rating mandate discussion'], ['With', 'Rohan Mehta (ACER BD)'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
@@ -543,55 +545,61 @@ function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = s
 const car = carModel({ x: -14, z: ROAD_Z - 1.8, color: '#ffffff', stripe: C.teal, kind: 'acer' });
 info(car, { kind: 'Vehicle', icon: '🚗', title: 'ACER pool car · MH-02 AC 4521', sub: 'Driver: Suresh · BD on board', chip: ['On the road', ''], rows: [['From', 'ABC Infrastructure (BKC)'], ['To', 'ACER Office'], ['ETA', '10:58 (12 min)'], ['Carrying', 'Signed fee proposal']] });
 const carTag = label('<em>CAR</em> BD → ACER Office', 'tag3', 0, 2.6, 0, car);
-const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e8edf5', stripe: '#4f7fd9' }), carModel({ x: -50, z: ROAD_Z + 1.8, ry: Math.PI, color: '#f2d8a7', stripe: '#c98a1b' })];
+const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e9eef4', stripe: '#2f5f9e', kind: 'acer' }), carModel({ x: -50, z: ROAD_Z + 1.8, ry: Math.PI, color: '#dfe6ee', stripe: '#3a4256', kind: 'acer' })];
 
-// ================================================================ ACER OFFICE — separate room pods with walkways
-const A = { x0: -6, x1: 42, z0: -20, z1: 8 };
+// ================================================================ ACER OFFICE — small room cubes with wide robot lanes
+const A = { x0: -8, x1: 44, z0: -24, z1: 9 };
 box(A.x1 - A.x0 + 1.6, .22, A.z1 - A.z0 + 1.6, '#ffffff', (A.x0 + A.x1) / 2, 0, (A.z0 + A.z1) / 2, scene, .1);
 const FY = .22;
 const office = group(0, FY, 0);
 const ROOMS = {};
 const GLASS = new THREE.MeshStandardMaterial({ color: '#cfeaf2', transparent: true, opacity: .3, roughness: .08, metalness: .1 });
 const W = (a, b, c, d, o) => wall(a, b, c, d, { parent: office, ...o });
-// corridor runner + floor
-box(A.x1 - A.x0 - 1, .025, 5.2, '#e3e9f1', (A.x0 + A.x1) / 2, 0, -4.6, office, .01);
-/** A room pod: floor, walls (doors measured along each wall), clickable floor, sign. */
-function pod(key, name, x0, z0, x1, z1, { tint = '#f7f9fc', back = true, left = true, right = true, front = 'low', glass = false, backDoor = null, frontDoor = null, data = {} } = {}) {
-  const f = mesh(new THREE.BoxGeometry(x1 - x0 - .1, .03, z1 - z0 - .1), tint, (x0 + x1) / 2, .015, (z0 + z1) / 2, office); f.castShadow = false;
+// plaza floor + robot lanes
+box(A.x1 - A.x0 - 1, .02, A.z1 - A.z0 - 1, '#eef3f8', (A.x0 + A.x1) / 2, 0, (A.z0 + A.z1) / 2, office, .01);
+box(40, .025, 3.0, '#dbe4ee', 13, 0, -8.5, office, .01);
+for (const x of [3.3, 16, 28.7]) box(1.6, .026, 4.2, '#dbe4ee', x, 0, -10.6, office, .01);
+function ribbon(text, x, z, w = 4.4) {
+  const g = group(x, 3.05, z + .2, 0, office);
+  const t = canvasTex(1024, 200, (c, cw, ch) => {
+    c.fillStyle = '#3AA4A9'; c.beginPath(); c.moveTo(30, 0); c.lineTo(cw, 0); c.lineTo(cw - 30, ch); c.lineTo(0, ch); c.closePath(); c.fill();
+    c.fillStyle = '#ffffff'; c.font = '800 88px Inter, Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cw / 2, ch / 2 + 4);
+  });
+  const m = plane(w, w * 200 / 1024, t, 0, .3, 0, g, true); m.rotation.x = -.25;
+}
+/** A compact room cube: thick white walls cut to different heights, low front with glass. */
+function cube(key, name, x0, z0, x1, z1, { glass = false, open = 'front', door = null, tint = '#f6f9fc', data = {} } = {}) {
+  const f = mesh(new THREE.BoxGeometry(x1 - x0, .04, z1 - z0), tint, (x0 + x1) / 2, .02, (z0 + z1) / 2, office); f.castShadow = false;
   ROOMS[key] = { name, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, x0, z0, x1, z1, mesh: f };
   info(f, { kind: 'Room', icon: '▦', title: name, ...data });
-  const col = glass ? GLASS : '#f4f7fa', h = 2.4;
-  if (back) W(x0, z0, x1, z0, { h, t: .2, color: col, doors: backDoor ? [backDoor] : [] });
-  if (left) W(x0, z0, x0, z1, { h, t: .2, color: col });
-  if (right) W(x1, z0, x1, z1, { h, t: .2, color: col });
-  if (front === 'low') {
-    W(x0, z1, x1, z1, { h: 1.0, t: .2, color: '#f4f7fa', doors: frontDoor ? [frontDoor] : [] });
-    // glass above the low wall
-    const len = x1 - x0, gl = new THREE.Mesh(new THREE.BoxGeometry(len, 1.4, .05), GLASS);
-    gl.position.set((x0 + x1) / 2, 1.7, z1); office.add(gl);
-    if (frontDoor) { const cut = new THREE.Mesh(new THREE.BoxGeometry(frontDoor[1] - frontDoor[0], 1.42, .07), new THREE.MeshBasicMaterial({ color: tint })); cut.visible = false; }
+  const col = glass ? GLASS : '#ffffff', t = glass ? .12 : .35;
+  // back wall faces the camera side? -> the "far" wall is at z0 for back-row cubes, z0 for front-row too
+  W(x0, z0, x1, z0, { h: 3.0, t, color: col, doors: open === 'back' && door ? [door] : [] });
+  W(x0, z0, x0, z1, { h: 2.3, t, color: col });
+  W(x1, z0, x1, z1, { h: 2.3, t, color: col });
+  if (open === 'front') {
+    W(x0, z1, x1, z1, { h: .95, t, color: glass ? GLASS : '#ffffff', doors: door ? [door] : [] });
+    const segs = door ? [[0, door[0]], [door[1], x1 - x0]] : [[0, x1 - x0]];
+    for (const [a, b] of segs) { const gl = new THREE.Mesh(new THREE.BoxGeometry(b - a, 1.3, .05), GLASS); gl.position.set(x0 + (a + b) / 2, 1.6, z1); office.add(gl); }
   }
-  if (glass) for (let x = x0; x <= x1 + .01; x += 1.6) { box(.07, h, .07, '#dfe6ee', x, 0, z0, office, .02); }
-  const lbl = label(name, 'tag3', (x0 + x1) / 2, 2.9, z0 + .3, office); lbl.element.style.fontSize = '11px';
+  if (glass) for (let x = x0; x <= x1 + .01; x += 1.6) box(.07, 3.0, .07, '#dfe6ee', x, 0, z0, office, .02);
+  ribbon(name.toUpperCase(), (x0 + x1) / 2, z0, Math.min(5.2, (x1 - x0) * .62));
   return ROOMS[key];
 }
-const COMP = pod('compliance', 'Compliance · CCO', -4, -18, 7, -8, { frontDoor: [8, 10], data: { sub: 'Mandate & accounts review', chip: ['Compliance approved ✓', ''], rows: [['Cases here', '5'], ['Statuses', 'Sent to CCO · Accounts Review · CCO Approved'], ['Owner', 'Compliance user']] } });
-const RATE = pod('rating', 'Rating Team · Boardroom', 10, -18, 27, -8, { frontDoor: [7, 9.5], data: { sub: 'Lead analysts working cases', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] } });
-const COMM = pod('committee', 'Rating Committee', 30, -18, 40, -8, { glass: true, frontDoor: [1.5, 3.5], tint: '#f3f7fb', data: { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] } });
-const PROP = pod('proposal', 'Reception · Proposal Desk', -4, -2, 7, 6, { front: false, backDoor: [8.2, 10.4], data: { sub: 'Deal owner + approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
-const PUB = pod('published', 'Published · Client Lounge', 23, -2, 40, 6, { front: false, right: false, backDoor: [2, 4], data: { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
+const COMP = cube('compliance', 'Compliance', -3, -20, 5, -13, { door: [5.4, 7.2], data: { sub: 'Mandate & accounts review', chip: ['Compliance approved ✓', ''], rows: [['Cases here', '5'], ['Statuses', 'Sent to CCO · Accounts Review · CCO Approved'], ['Owner', 'Compliance user']] } });
+const RATE = cube('rating', 'Rating Team', 11, -20, 21, -13, { door: [4, 6], data: { sub: 'Boardroom · lead analysts', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] } });
+const COMM = cube('committee', 'Rating Committee', 27, -20, 35, -13, { glass: true, door: [.8, 2.6], tint: '#f3f7fb', data: { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] } });
+const PROP = cube('proposal', 'Reception · Proposal', -3, -4, 5, 3, { open: 'none', data: { sub: 'Front desk + deal approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
+const PUB = cube('published', 'Published Lobby', 27, -4, 36, 3, { open: 'none', data: { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
 
-// outer building walls (teal, windows) + low front with the entrance
+// outer glass walls of the building (low, so the interior reads from above when opened)
 const OUT = '#3AA4A9';
-W(A.x0, A.z0, A.x1, A.z0, { color: OUT, windows: [[3, 7], [12, 16], [21, 25], [30, 34], [39, 43]] });
-W(A.x0, A.z0, A.x0, A.z1, { color: OUT, windows: [[3, 7], [15, 19]] });
-W(A.x1, A.z0, A.x1, A.z1, { color: OUT, windows: [[3, 7], [17, 21]] });
-W(A.x0, A.z1, A.x1, A.z1, { color: OUT, h: .8, doors: [[6, 9.2]] });
-box(A.x1 - A.x0, .06, .32, '#ffffff', (A.x0 + A.x1) / 2, 3.2, A.z0, office, .02);
-box(.32, .06, A.z1 - A.z0, '#ffffff', A.x0, 3.2, (A.z0 + A.z1) / 2, office, .02);
-box(.32, .06, A.z1 - A.z0, '#ffffff', A.x1, 3.2, (A.z0 + A.z1) / 2, office, .02);
+W(A.x0, A.z0, A.x1, A.z0, { color: OUT, h: 1.2 });
+W(A.x0, A.z0, A.x0, A.z1, { color: OUT, h: 1.2 });
+W(A.x1, A.z0, A.x1, A.z1, { color: OUT, h: 1.2 });
+W(A.x0, A.z1, A.x1, A.z1, { color: OUT, h: .6, doors: [[8, 11.2]] });
 const sign = plane(9, 2, textTex('ACER', { size: 190, color: '#ffffff', spacing: 30 }), A.x0 - .17, 2.0, -12, office, true);
-sign.rotation.y = -Math.PI / 2;
+sign.visible = false;
 // ---- upper floors: glass office tower that fades away when you look inside
 const acerShell = group(0, FY, 0);
 const shellMats = [];
@@ -600,7 +608,8 @@ const mGlass = SM('#7cc4cb', { opacity: .62, roughness: .1, metalness: .2 }), mS
 const BW = A.x1 - A.x0, BD = A.z1 - A.z0, BCX = (A.x0 + A.x1) / 2, BCZ = (A.z0 + A.z1) / 2;
 const sbox = (w, h, d, m, x, y, z, r = .05) => { const q = new THREE.Mesh(RB(w, h, d, r), m); q.position.set(x, y + h / 2, z); q.castShadow = true; q.receiveShadow = true; acerShell.add(q); return q; };
 // ground-floor facade (front glass + entrance) so the building reads as complete from outside
-sbox(BW - 5.6, 2.3, .12, mGlass, BCX + 2.8, .9, A.z1, .02);
+for (const zz of [A.z1, A.z0]) sbox(BW, 2.0, .12, mGlass, BCX, 1.2, zz, .02);
+for (const xx of [A.x0, A.x1]) sbox(.12, 2.0, BD, mGlass, xx, 1.2, BCZ, .02);
 const FLOORS = 1, FLH = 3.4;
 for (let f = 0; f < FLOORS; f++) {
   const y = 3.2 + f * FLH;
@@ -633,15 +642,27 @@ function updateShell(dt) {
   for (const m of shellMats) { m.opacity = m.userData.base * shellAlpha; m.depthWrite = shellAlpha > .98; }
 }
 
+
+// standing ACER letters at the entrance (teal, extruded)
+(async () => {
+  try {
+    const { FontLoader } = await import('three/addons/loaders/FontLoader.js');
+    const { TextGeometry } = await import('three/addons/geometries/TextGeometry.js');
+    const font = await new FontLoader().loadAsync('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/fonts/helvetiker_bold.typeface.json');
+    const geo = new TextGeometry('ACER', { font, size: 2.2, depth: .45, curveSegments: 6, bevelEnabled: true, bevelThickness: .05, bevelSize: .04, bevelSegments: 2 });
+    geo.computeBoundingBox(); const bb = geo.boundingBox;
+    const m = new THREE.Mesh(geo, M('#3AA4A9', { roughness: .35 })); m.castShadow = true;
+    m.position.set(-4.6 - (bb.max.x - bb.min.x) / 2, .1, A.z1 + 3.4); scene.add(m);
+    box(9.2, .35, 1.4, '#ffffff', -4.6, 0, A.z1 + 3.6, scene, .08);
+  } catch (e) { console.warn('ACER letters', e); }
+})();
 // entrance canopy
-box(4.6, .16, 2.2, '#ffffff', 1.6, 2.6, A.z1 + 1.1, office, .06);
-for (const sd of [-1, 1]) box(.14, 2.6, .14, '#d5dde8', 1.6 + sd * 2.1, 0, A.z1 + 2.0, office, .03);
-box(4.8, .1, 2.6, '#e9eef6', 1.6, -.12, A.z1 + 1.3, office, .04);
-plant(-1.4, A.z1 + 2.2, .9, office); plant(4.6, A.z1 + 2.2, .9, office);
-// car park (right of the building)
+box(4.6, .16, 2.2, '#ffffff', 9.6, 2.6, A.z1 + 1.1, office, .06);
+for (const sd of [-1, 1]) box(.14, 2.6, .14, '#d5dde8', 9.6 + sd * 2.1, 0, A.z1 + 2.0, office, .03);
+plant(6.6, A.z1 + 2.2, .9, office); plant(12.6, A.z1 + 2.2, .9, office);
 for (let i = 0; i < 4; i++) box(4.6, .03, .12, '#ffffff', 50, 0, -6 + i * 2.6, scene, .02);
-carModel({ x: 50, z: -4.7, ry: 0, color: '#ffffff', stripe: '#9aa6b4' });
-carModel({ x: 50, z: .5, ry: 0, color: '#e8edf5', stripe: C.teal });
+carModel({ x: 50, z: -4.7, color: '#ffffff', stripe: '#9aa6b4', kind: 'acer' });
+carModel({ x: 50, z: .5, color: '#eef2f6', stripe: C.teal, kind: 'acer' });
 
 function art(x, y, z, ry, w, h, seed, parent = office) {
   const g = group(x, y, z, ry, parent);
@@ -683,103 +704,116 @@ function cupboard(x, z, ry = 0, w = 1.8, h = 2.1, parent = office, seed = 0) {
   return g;
 }
 
-// ---------------- Compliance pod
-cupboard(-1.6, -17.6, 0, 2.6, 2.1, office, 1); cupboard(4.4, -17.6, 0, 2.6, 2.1, office, 2);
-cupboard(-3.6, -12.6, Math.PI / 2, 2.6, 2.1, office, 5);
-desk(-1.0, -14.6, 0, { parent: office });
-seatedAt(-1.0, -13.7, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'ABC Infra mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
-desk(2.2, -14.6, 0, { parent: office });
-seatedAt(2.2, -13.7, Math.PI, 4, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Priya Nair', sub: 'Accounts review', chip: ['Accounts review', 'warn'], rows: [['Invoice', 'Paid · ₹ 6.5 L'], ['Source', 'Zoho Books']] });
-desk(5.2, -14.6, 0, { parent: office });
-seatedAt(5.2, -13.7, Math.PI, 3, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Kavya Menon', sub: 'Compliance analyst', chip: ['KYC review', 'warn'], rows: [['Queue', '3 mandates']] });
-plant(-3.2, -8.8, .9, office); art(1.4, 2.2, -17.83, 0, 1.2, .8, 1);
-// ---------------- Rating Team pod (largest)
-cupboard(11.6, -17.6, 0, 2.4, 2.1, office, 12); cupboard(14.2, -17.6, 0, 2.4, 2.1, office, 3);
-cupboard(23.0, -17.6, 0, 2.4, 2.1, office, 4); cupboard(25.6, -17.6, 0, 2.4, 2.1, office, 6);
-wallScreen(18.6, 2.6, -17.78, 0, 3.4, 1.6, (g, w, h) => {
+
+// ---------------- Compliance cube
+cupboard(-1.2, -19.6, 0, 2.4, 2.1, office, 1); cupboard(3.0, -19.6, 0, 2.4, 2.1, office, 2);
+cupboard(-2.6, -15.6, Math.PI / 2, 2.0, 2.0, office, 5);
+desk(-.6, -17.4, 0, { parent: office });
+seatedAt(-.6, -16.5, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'ABC Infra mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
+desk(2.6, -17.4, 0, { parent: office });
+seatedAt(2.6, -16.5, Math.PI, 4, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Priya Nair', sub: 'Accounts review', chip: ['Accounts review', 'warn'], rows: [['Invoice', 'Paid · ₹ 6.5 L'], ['Source', 'Zoho Books']] });
+plant(4.4, -13.8, .8, office);
+// ---------------- Rating Team cube
+cupboard(12.4, -19.6, 0, 2.2, 2.1, office, 12); cupboard(19.6, -19.6, 0, 2.2, 2.1, office, 3);
+wallScreen(16, 2.6, -19.78, 0, 3.0, 1.5, (g, w, h) => {
   g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#2D6A67'; g.font = '800 40px Inter'; g.fillText('ABC Infra · Financials FY24–26', 30, 62);
-  [90, 130, 110, 170, 210].forEach((v, i) => { g.fillStyle = i < 4 ? '#8fd0d2' : '#3AA4A9'; g.fillRect(60 + i * 130, h - 40 - v, 80, v); });
+  g.fillStyle = '#2D6A67'; g.font = '800 40px Inter'; g.fillText('ABC Infra · Financials', 30, 62);
+  [90, 130, 110, 170, 210].forEach((v, i) => { g.fillStyle = i < 4 ? '#8fd0d2' : '#3AA4A9'; g.fillRect(60 + i * 120, h - 40 - v, 76, v); });
 }, office);
-box(9.2, .03, 4.4, '#d3dbe6', 18.4, 0, -13.2, office, .015);
-table(18.4, -13.2, 7.0, 2.0, office);
+box(7.2, .03, 3.8, '#d3dbe6', 16, 0, -16.4, office, .015);
+table(16, -16.4, 5.6, 1.8, office);
 const ANALYSTS = ['Rahul Mehta', 'Sneha Pillai', 'Kavita Joshi', 'Arjun Desai', 'Meera Shah', 'Dev Patel'];
-[15.6, 17.5, 19.4, 21.3].forEach((x, i) => {
-  seatedAt(x, -14.65, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst · ABC Infra' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'ACR/2026/0847 ABC Infra' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
-  box(.42, .02, .3, '#c9d1dc', x, .78, -13.8, office, .01);
+[14.0, 15.35, 16.7, 18.05].forEach((x, i) => {
+  seatedAt(x, -17.7, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst · ABC Infra' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'ACR/2026/0847 ABC Infra' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
+  box(.42, .02, .3, '#c9d1dc', x, .78, -16.95, office, .01);
 });
-[16.5, 20.3].forEach((x, i) => seatedAt(x, -11.75, Math.PI, i + 2, false, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[4 + i], sub: 'Analyst', chip: ['Data collection', 'grey'], rows: [['Cases', '4']] }));
-info(person({ x: 12.9, z: -13.2, ry: Math.PI / 2, tie: C.tealD, parent: office, variant: 1 }), { kind: 'Rating Team', icon: '🧑‍🏫', title: 'S. Iyer', sub: 'Head of Ratings', chip: ['Reviewing', ''], rows: [['Team', '6 analysts'], ['WIP', '21 cases']] });
-desk(26.2, -15.0, -Math.PI / 2, { parent: office }); seatedAt(25.3, -15.0, Math.PI / 2, 3, false, office);
-desk(26.2, -11.8, -Math.PI / 2, { parent: office }); seatedAt(25.3, -11.8, Math.PI / 2, 1, true, office);
-model('side', 11.0, -9.0, { parent: office, s: FURN * 1.3 }); model('coffee', 11.0, -9.0, { parent: office, y: .78, s: FURN * 1.1 });
-plant(26.2, -8.8, 1, office);
-// ---------------- Rating Committee pod (glass)
-const rcScreen = dynScreen(35, 2.4, -17.78, 0, 3.0, 1.5, office);
+[14.7, 17.4].forEach((x, i) => seatedAt(x, -15.1, Math.PI, i + 2, false, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[4 + i], sub: 'Analyst', chip: ['Data collection', 'grey'], rows: [['Cases', '4']] }));
+info(person({ x: 12.3, z: -16.4, ry: Math.PI / 2, tie: C.tealD, parent: office, variant: 1 }), { kind: 'Rating Team', icon: '🧑‍🏫', title: 'S. Iyer', sub: 'Head of Ratings', chip: ['Reviewing', ''], rows: [['Team', '6 analysts'], ['WIP', '21 cases']] });
+model('side', 20.3, -15.0, { parent: office, s: FURN * 1.2 }); model('coffee', 20.3, -15.0, { parent: office, y: .72, s: FURN });
+// ---------------- Rating Committee cube (glass)
+const rcScreen = dynScreen(31, 2.6, -19.78, 0, 2.8, 1.4, office);
 function drawRC(state) {
   rcScreen.draw((g, w, h) => {
     g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#62758a'; g.font = '800 34px Inter'; g.fillText('RATING COMMITTEE · RC-2026-112', 30, 58);
+    g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText('RATING COMMITTEE', 30, 52);
     if (state === 'done') {
-      g.fillStyle = '#2D6A67'; g.font = '900 96px Inter'; g.fillText('VOTE: 5/5', 30, 178);
-      g.fillStyle = '#3AA4A9'; g.font = '800 40px Inter'; g.fillText('AA+ · Stable', 30, 236);
+      g.fillStyle = '#2D6A67'; g.font = '900 92px Inter'; g.fillText('VOTE: 5/5', 30, 168);
+      g.fillStyle = '#3AA4A9'; g.font = '800 38px Inter'; g.fillText('AA+ · Stable', 30, 226);
     } else if (state === 'voting') {
-      g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText('ABC Infrastructure Ltd.', 30, 140);
-      g.fillStyle = '#c98a1b'; g.font = '800 38px Inter'; g.fillText('● Voting in progress…', 30, 210);
+      g.fillStyle = '#1d2733'; g.font = '800 42px Inter'; g.fillText('ABC Infrastructure Ltd.', 30, 130);
+      g.fillStyle = '#c98a1b'; g.font = '800 36px Inter'; g.fillText('● Voting in progress…', 30, 200);
     } else {
-      g.fillStyle = '#9aa6b4'; g.font = '700 40px Inter'; g.fillText('Waiting for the case file', 30, 160);
+      g.fillStyle = '#9aa6b4'; g.font = '700 38px Inter'; g.fillText('Waiting for the case file', 30, 150);
     }
   });
 }
-box(7.6, .03, 4.4, '#d3dbe6', 35.2, 0, -13.2, office, .015);
-table(35.2, -13.2, 5.4, 2.0, office);
+box(6.2, .03, 3.8, '#d3dbe6', 31, 0, -16.4, office, .015);
+table(31, -16.4, 4.4, 1.8, office);
 const RC = ['Dr. R. Menon (Chair)', 'Lata Bhat', 'K. Srinivasan', 'Farah Khan', 'Ajay Gupta', 'N. Kulkarni'];
 const RC_PEOPLE = [];
-[33.4, 35.2, 37.0].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -14.65, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] })));
-[34.3, 36.1].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -11.75, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] })));
-RC_PEOPLE.push(seatedAt(38.6, -13.2, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
+[29.7, 31.0, 32.3].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -17.7, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] })));
+[30.3, 31.7].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -15.1, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] })));
+RC_PEOPLE.push(seatedAt(33.8, -16.4, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
 RC_PEOPLE.forEach(p => p.userData.play('sit'));
-cupboard(31.6, -17.6, 0, 2.2, 1.6, office, 8); plant(39.2, -8.8, .9, office);
-// ---------------- Reception · Proposal pod
-box(2.8, 1.05, .7, '#ffffff', -1.6, 0, 3.8, office, .08);
-box(2.82, .22, .72, C.teal, -1.6, .55, 3.8, office, .04);
-seatedAt(-1.6, 2.8, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Reception', sub: 'Front desk · visitors & couriers', chip: ['On duty', ''], rows: [['Visitors today', '6']] });
-desk(-1.8, -.8, 0, { parent: office });
-seatedAt(-1.8, .1, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
-desk(1.2, -.8, 0, { parent: office });
-seatedAt(1.2, .1, Math.PI, 0, false, office, { kind: 'ACER staff', icon: '🧑‍💼', title: 'Vikram Rao', sub: 'Proposal desk · Pricing', chip: ['Negotiation', 'warn'], rows: [['Working on', 'Kavya Textiles NCD'], ['Queue', '4 proposals']] });
-cupboard(-3.6, 2.2, Math.PI / 2, 2.4, 2.1, office, 9);
-model('coat', -3.4, 5.4, { parent: office, s: FURN * 1.2 });
-plant(6.3, 5.2, 1, office); art(-3.83, 2.0, -.6, Math.PI / 2, 1.2, .8, 0);
-// ---------------- Lounge between reception and published
-box(7.4, .03, 5.4, '#dfe5ee', 15, 0, 2.2, office, .015);
-model('sofa', 13.4, 4.4, { parent: office, ry: Math.PI, s: FURN * 1.25 });
-model('sofa', 17.0, 4.4, { parent: office, ry: Math.PI, s: FURN * 1.25 });
-model('coffeeTable', 15.2, 2.6, { parent: office, s: FURN * 1.3 });
-model('lamp', 11.2, 5.0, { parent: office, s: FURN * 1.3 });
-plant(19.4, 5.2, 1, office); plant(11, -.8, .9, office);
-const cool = group(19.4, 0, -.8, 0, office); box(.45, .95, .45, '#eef1f5', 0, 0, 0, cool, .05); mesh(new THREE.CylinderGeometry(.18, .18, .45, 16), M('#9dd5ec', { transparent: true, opacity: .85 }), 0, 1.18, 0, cool);
-// ---------------- Published · client lounge
-const pubWall = dynScreen(32, 2.5, -1.75, 0, 4.6, 1.8, office);
+// ---------------- Reception · Proposal cube
+box(2.6, 1.05, .7, '#ffffff', -.6, 0, 1.6, office, .08);
+box(2.62, .22, .72, C.teal, -.6, .55, 1.6, office, .04);
+seatedAt(-.6, .6, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Reception', sub: 'Front desk · visitors & couriers', chip: ['On duty', ''], rows: [['Visitors today', '6']] });
+desk(-1.4, -3.3, 0, { parent: office });
+seatedAt(-1.4, -2.4, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
+desk(1.8, -3.3, 0, { parent: office });
+seatedAt(1.8, -2.4, Math.PI, 0, false, office, { kind: 'ACER staff', icon: '🧑‍💼', title: 'Vikram Rao', sub: 'Proposal desk · Pricing', chip: ['Negotiation', 'warn'], rows: [['Working on', 'Kavya Textiles NCD'], ['Queue', '4 proposals']] });
+cupboard(4.6, -1.0, -Math.PI / 2, 2.2, 2.0, office, 9);
+plant(-2.4, 2.4, .8, office);
+// ---------------- open lounge between the cubes
+box(8, .03, 5, '#dfe6ef', 16, 0, -.5, office, .015);
+model('sofa', 14.0, 1.3, { parent: office, ry: Math.PI, s: FURN * 1.25 });
+model('sofa', 18.0, 1.3, { parent: office, ry: Math.PI, s: FURN * 1.25 });
+model('coffeeTable', 16, -.4, { parent: office, s: FURN * 1.3 });
+plant(12.2, -2.6, 1, office); plant(19.8, -2.6, 1, office);
+const cool = group(21.4, 0, 1.6, 0, office); box(.45, .95, .45, '#eef1f5', 0, 0, 0, cool, .05); mesh(new THREE.CylinderGeometry(.18, .18, .45, 16), M('#9dd5ec', { transparent: true, opacity: .85 }), 0, 1.18, 0, cool);
+// ---------------- Published lobby cube
+const pubWall = dynScreen(31.5, 2.5, -3.78, 0, 4.0, 1.6, office);
 function drawPub(done) {
   pubWall.draw((g, w, h) => {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = done ? '#3AA4A9' : '#c5ced8'; g.fillRect(0, 0, w, 18);
-    g.fillStyle = '#62758a'; g.font = '800 32px Inter'; g.fillText(done ? 'RATING PUBLISHED' : 'RATING · NOT YET RELEASED', 44, 80);
-    g.fillStyle = '#1d2733'; g.font = '800 50px Inter'; g.fillText('ABC Infrastructure Ltd.', 44, 150);
-    if (done) { g.fillStyle = '#2D6A67'; g.font = '900 110px Inter'; g.fillText('ACER AA+', 44, 290); g.fillStyle = '#3AA4A9'; g.font = '800 46px Inter'; g.fillText('Stable', 610, 285); }
-    else { g.fillStyle = '#9aa6b4'; g.font = '700 44px Inter'; g.fillText('Awaiting Rating Committee decision', 44, 270); }
+    g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText(done ? 'RATING PUBLISHED' : 'RATING · NOT YET RELEASED', 40, 74);
+    g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText('ABC Infrastructure Ltd.', 40, 138);
+    if (done) { g.fillStyle = '#2D6A67'; g.font = '900 100px Inter'; g.fillText('ACER AA+', 40, 262); g.fillStyle = '#3AA4A9'; g.font = '800 42px Inter'; g.fillText('Stable', 560, 258); }
+    else { g.fillStyle = '#9aa6b4'; g.font = '700 40px Inter'; g.fillText('Awaiting Rating Committee decision', 40, 244); }
   });
 }
-box(6.4, .03, 3.8, '#d8dfe8', 36.6, 0, 3.4, office, .015);
-model('sofa', 36.6, 4.9, { parent: office, ry: Math.PI, s: FURN * 1.25 });
-model('coffeeTable', 36.6, 3.2, { parent: office, s: FURN * 1.2 });
-model('lamp', 39.4, 5.0, { parent: office, s: FURN * 1.3 });
-cupboard(23.4, 2.0, Math.PI / 2, 2.4, 1.8, office, 10);
-plant(25.4, 5.2, 1, office); plant(39.2, -1.0, 1, office);
-const pubBD = info(person({ x: 32.6, z: 1.6, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), BD_INFO('Published', 'Handing over the rating to the client'));
-const pubClient = info(person({ x: 31.0, z: 1.9, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['Rating received', ''], rows: [['Rating', 'ACER AA+ | Stable'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
-const pubBubble = label('Thank you, ACER!', 'bubble', 31.0, 3.2, 1.9, office);
+model('sofa', 34.4, 2.2, { parent: office, ry: Math.PI, s: FURN * 1.2 });
+model('coffeeTable', 34.4, .7, { parent: office, s: FURN * 1.1 });
+cupboard(27.5, -1.2, Math.PI / 2, 2.0, 1.8, office, 10);
+plant(35.4, -3.2, .9, office);
+const pubBD = info(person({ x: 32.4, z: .2, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), BD_INFO('Published', 'Handing over the rating to the client'));
+const pubClient = info(person({ x: 30.9, z: .5, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['Rating received', ''], rows: [['Rating', 'ACER AA+ | Stable'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
+const pubBubble = label('Thank you, ACER!', 'bubble', 30.9, 3.6, .5, office);
 function setPublished(on) { pubBD.visible = pubClient.visible = on; pubBubble.userData.want = on; pubBubble.visible = on; drawPub(on); }
+
+// ---- numbered journey path (teal dashes + numbered discs)
+function numDisc(n, x, z, y = .06, parent = scene) {
+  const t = canvasTex(128, 128, (c) => { c.fillStyle = '#ffffff'; c.beginPath(); c.arc(64, 64, 62, 0, 7); c.fill(); c.fillStyle = '#3AA4A9'; c.beginPath(); c.arc(64, 64, 52, 0, 7); c.fill();
+    c.fillStyle = '#ffffff'; c.font = '800 64px Inter, Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(n), 64, 68); });
+  const m = new THREE.Mesh(new THREE.CircleGeometry(.55, 32), new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); parent.add(m);
+}
+function pathDashes(pts, y, parent) {
+  const dm = new THREE.MeshBasicMaterial({ color: '#3AA4A9', toneMapped: false });
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const len = Math.hypot(bx - ax, bz - az), ang = Math.atan2(bz - az, bx - ax);
+    for (let t = .3; t < len; t += .8) { const d = new THREE.Mesh(new THREE.PlaneGeometry(.35, .1), dm); d.rotation.set(-Math.PI / 2, 0, -ang); d.position.set(ax + Math.cos(ang) * t, y, az + Math.sin(ang) * t); parent.add(d); }
+  }
+}
+pathDashes([[CLIENT.x + 1, CLIENT.z + 7.4], [CLIENT.x + 3.5, 11.6], [9.6, 11.6], [9.6, 9.6]], .17, scene);
+pathDashes([[9.6, 7], [3.6, 4.6], [3.8, 3.8], [6.6, 3.8], [6.6, -8.5], [3.3, -8.5], [3.3, -12.4]], .05, office);
+pathDashes([[3.3, -8.5], [16, -8.5], [16, -12.4]], .05, office);
+pathDashes([[16, -8.5], [28.7, -8.5], [28.7, -12.4]], .05, office);
+pathDashes([[22, -8.5], [24, -2], [27.5, 1.5]], .05, office);
+numDisc(1, CLIENT.x + 1, CLIENT.z + 7.4, .18); numDisc(2, -18, ROAD_Z - 4.2, .2);
+[[3, 3.6, 4.6], [4, 3.3, -11.4], [5, 9.5, -8.5], [6, 16, -11.4], [7, 28.7, -11.4], [8, 26.4, 1.6]].forEach(([n, x, z]) => numDisc(n, x, z, .06, office));
 
 // ---- robot courier
 function robot(x, z, ry = 0, parent = scene) {
@@ -798,7 +832,7 @@ function robot(x, z, ry = 0, parent = scene) {
   g.scale.setScalar(1.15);
   return g;
 }
-const BOT_PARK = { compliance: [5.0, -10.0], rating: [18.2, -9.6], committee: [32.5, -9.8] };
+const BOT_PARK = { compliance: [3.6, -14.2], rating: [19.6, -14.2], committee: [28.7, -14.2] };
 const bot = robot(...BOT_PARK.committee, Math.PI, office);
 info(bot, { kind: 'Robot courier', icon: '🤖', title: 'Case courier R-01', sub: 'Carries case files between rooms', chip: ['Delivering', ''], rows: [['Carrying', 'ABC Infra case file'], ['From', 'Compliance'], ['To', 'Rating Team'], ['Battery', '86%']] });
 const botTag = label('<em>R-01</em> parked', 'tag3', 0, 2.8, 0, bot);
@@ -878,17 +912,17 @@ renderList('rooms');
 
 // ================================================================ camera views
 const VIEWS = {
-  all: [new THREE.Vector3(-70, 74, 98), new THREE.Vector3(-20, 4, -2)],
-  building: [new THREE.Vector3(-30, 40, 78), new THREE.Vector3(16, 4, -4)],
-  acer: [new THREE.Vector3(-2, 40, 42), new THREE.Vector3(18, 0, -6)],
-  client: [new THREE.Vector3(-106, 34, 46), new THREE.Vector3(-74, 4, -1)],
-  road: [new THREE.Vector3(-62, 22, 44), new THREE.Vector3(-36, 0, 14)],
-  proposal: [new THREE.Vector3(-12, 18, 22), new THREE.Vector3(1, 0, 0)],
-  compliance: [new THREE.Vector3(-10, 20, 6), new THREE.Vector3(1.5, 0, -13)],
-  rating: [new THREE.Vector3(6, 22, 9), new THREE.Vector3(18.5, 0, -13)],
-  committee: [new THREE.Vector3(24, 20, 8), new THREE.Vector3(35, 0, -13)],
-  published: [new THREE.Vector3(20, 18, 22), new THREE.Vector3(31, 0, 1)],
-  hero: [new THREE.Vector3(-21, 182, 192), new THREE.Vector3(-21, 0, 1)],
+  all: [new THREE.Vector3(-34, 70, 96), new THREE.Vector3(-4, 4, -4)],
+  building: [new THREE.Vector3(-18, 42, 80), new THREE.Vector3(14, 3, -4)],
+  acer: [new THREE.Vector3(2, 42, 38), new THREE.Vector3(17, 0, -9)],
+  client: [new THREE.Vector3(-74, 32, 44), new THREE.Vector3(-44, 4, -1)],
+  road: [new THREE.Vector3(-40, 22, 44), new THREE.Vector3(-18, 0, 14)],
+  proposal: [new THREE.Vector3(-9, 16, 18), new THREE.Vector3(1, 0, -.5)],
+  compliance: [new THREE.Vector3(-7, 17, -3), new THREE.Vector3(1, 0, -16.5)],
+  rating: [new THREE.Vector3(6, 17, -3), new THREE.Vector3(16, 0, -16.5)],
+  committee: [new THREE.Vector3(21, 17, -3), new THREE.Vector3(31, 0, -16.5)],
+  published: [new THREE.Vector3(22, 15, 16), new THREE.Vector3(31.5, 0, -.5)],
+  hero: [new THREE.Vector3(-6, 150, 160), new THREE.Vector3(-6, 0, -4)],
 };
 const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], building: ['ACER', 'ACER Office · Mumbai', 'Credit rating HQ'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
 let fly = null;
@@ -900,9 +934,9 @@ function flyTo(key, dur = 1.6) {
   const s = SITE_LABEL[key] || SITE_LABEL.acer;
   document.getElementById('siteTag').textContent = s[0]; document.getElementById('siteName').textContent = s[1]; document.getElementById('siteSub').textContent = s[2];
 }
-flyTo('building', .01);
+flyTo('all', .01);
 let introDone = false;
-setTimeout(() => { if (!introDone && !replay) flyTo('acer', 2.4); introDone = true; }, 3200);
+setTimeout(() => { if (!introDone && !replay) flyTo('building', 2.6); introDone = true; }, 1800);
 renderer.domElement.addEventListener('pointerdown', () => { introDone = true; });
 const menu = document.getElementById('menu');
 document.getElementById('siteBtn').onclick = () => menu.classList.toggle('open');
@@ -922,7 +956,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   const hit = ray.intersectObjects(clickables, true)[0];
   if (!hit) return;
   let o = hit.object; while (o && !o.userData.info) o = o.parent;
-  if (o) { showInfo(o.userData.info); showBrackets(o); }
+  if (o) { showInfo(o.userData.info); showBrackets(o); if (o.userData.info.kind === 'ACER HQ' && shellAlpha > .5) flyTo('acer'); }
 });
 
 // ================================================================ replay: the real journey of the case
@@ -955,22 +989,22 @@ function SCRIPT() {
     { kind: 'call', fn: () => { CLIENT_FIGS[2].visible = false; } },
     { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(CLIENT.x + .8, CLIENT.z + 5.6), at(CLIENT.x + 1, 9.4), at(CLIENT.x + 3.5, 12.6)] },
     { kind: 'call', fn: () => { walker.visible = false; car.position.set(CLIENT.x + 3.5, 0, CAR_Z); step(1, 'road')(); } },
-    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(CLIENT.x + 3.5, CAR_Z), at(-40, CAR_Z)] },
+    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(CLIENT.x + 3.5, CAR_Z), at(-20, CAR_Z)] },
     { kind: 'call', fn: () => flyTo('building', 1.6) },
-    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(-40, CAR_Z), at(1.6, CAR_Z)] },
-    { kind: 'call', fn: () => { walker.visible = true; walker.position.set(1.6, 0, 12.6); } },
-    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(1.6, 12.6), at(1.6, 9.2), at(1.6, 7, FY), at(.6, 1.6, FY)], onStart: step(2, 'proposal') },
+    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(-20, CAR_Z), at(9.6, CAR_Z)] },
+    { kind: 'call', fn: () => { walker.visible = true; walker.position.set(9.6, 0, 12.6); } },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(9.6, 12.6), at(9.6, 9.6), at(9.6, 7, FY), at(3.6, 4.6, FY), at(.6, -1.0, FY)], onStart: step(2, 'proposal') },
     { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
     { kind: 'wait', d: 1.8 },
-    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(.6, 1.6, FY), at(5.3, 1.2, FY), at(5.3, -5, FY), at(5.0, -8.6, FY), at(2.2, -12.2, FY)], onStart: step(3, 'compliance') },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(.6, -1.0, FY), at(3.8, 3.8, FY), at(6.6, 3.8, FY), at(6.6, -8.5, FY), at(3.3, -8.5, FY), at(3.3, -13.2, FY), at(1.0, -15.2, FY)], onStart: step(3, 'compliance') },
     { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
     { kind: 'wait', d: 1.8 },
     { kind: 'call', fn: () => { walker.visible = false; setBotTag('case file → Rating Team'); step(4, 'rating')(); } },
-    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.compliance), at(5.0, -5), at(18.2, -5), at(...BOT_PARK.rating)] },
+    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.compliance), at(3.3, -12.4), at(3.3, -8.5), at(16, -8.5), at(16, -13.9), at(...BOT_PARK.rating)] },
     { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Rating Team'); step(5)(); } },
     { kind: 'wait', d: 2.8 },
     { kind: 'call', fn: () => { setBotTag('rating note → Committee'); step(6, 'committee')(); } },
-    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.rating), at(18.2, -5), at(32.5, -5), at(...BOT_PARK.committee)] },
+    { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.rating), at(16, -13.9), at(16, -8.5), at(28.7, -8.5), at(...BOT_PARK.committee)] },
     { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Committee'); drawRC('voting'); RC_PEOPLE.forEach(p => p.userData.play('vote')); } },
     { kind: 'wait', d: 2.6 },
     { kind: 'call', fn: () => { drawRC('done'); RC_PEOPLE.forEach(p => p.userData.play('sit')); setBotTag('parked · Committee'); } },
