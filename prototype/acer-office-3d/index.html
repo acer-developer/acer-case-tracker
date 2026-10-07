@@ -142,6 +142,43 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+// ================================================================ 3D assets (Kenney, CC0 — see assets/LICENSE-kenney.txt)
+const loading = document.createElement('div');
+loading.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;background:#dfe6f4;z-index:50;font:700 14px Inter;color:#2D6A67';
+loading.textContent = 'Loading ACER office…';
+document.body.appendChild(loading);
+const gltfLoader = new GLTFLoader();
+const ASSET_LIST = {
+  desk: 'furniture/desk', chairDesk: 'furniture/chairDesk', screen: 'furniture/computerScreen', keyboard: 'furniture/computerKeyboard',
+  laptop: 'furniture/laptop', table: 'furniture/table', chairMeet: 'furniture/chairModernCushion', bookcase: 'furniture/bookcaseClosedWide',
+  bookcaseOpen: 'furniture/bookcaseOpen', plantBig: 'furniture/pottedPlant', plantSmall: 'furniture/plantSmall1', sofa: 'furniture/loungeDesignSofa',
+  coffeeTable: 'furniture/tableCoffeeGlass', lamp: 'furniture/lampRoundFloor', rug: 'furniture/rugRectangle', tv: 'furniture/televisionModern',
+  coffee: 'furniture/kitchenCoffeeMachine', side: 'furniture/sideTable', bin: 'furniture/trashcan', coat: 'furniture/coatRackStanding',
+  sedan: 'cars/sedan', suv: 'cars/suv', taxi: 'cars/taxi', van: 'cars/van', suvLux: 'cars/suv-luxury', hatch: 'cars/hatchback-sports',
+  tower: 'city/building-skyscraper-c', towerB: 'city/building-skyscraper-a', towerD: 'city/building-skyscraper-d', towerE: 'city/building-skyscraper-e',
+  bldA: 'city/building-a', bldC: 'city/building-c', bldE: 'city/building-e', bldH: 'city/building-h',
+  lowA: 'city/low-detail-building-a', lowC: 'city/low-detail-building-c', lowW: 'city/low-detail-building-wide-a',
+};
+const ASSETS = {};
+await Promise.all(Object.entries(ASSET_LIST).map(async ([k, f]) => {
+  try { ASSETS[k] = await gltfLoader.loadAsync(`assets/${f}.glb`); } catch (e) { console.warn('asset failed', f, e); }
+}));
+const FURN = 1.95; // Kenney furniture kit → metres
+/** Place a static model with its footprint centred on (x, z). */
+function model(key, x, z, { ry = 0, s = FURN, y = 0, parent = null, sx = 1, sz = 1, sy = 1 } = {}) {
+  const src = ASSETS[key]; if (!src) return null;
+  const inner = src.scene.clone(true);
+  inner.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const b = new THREE.Box3().setFromObject(inner), c = b.getCenter(new THREE.Vector3());
+  inner.position.set(-c.x, -b.min.y, -c.z);
+  const g = new THREE.Group(); g.add(inner);
+  g.scale.set(s * sx, s * sy, s * sz); g.position.set(x, y, z); g.rotation.y = ry;
+  (parent || scene).add(g);
+  return g;
+}
 
 // ================================================================ renderer / scene
 const app = document.getElementById('app');
@@ -286,11 +323,8 @@ function person({ x = 0, z = 0, ry = 0, suit = '#2e3b55', hair = '#2b2420', fema
   return g;
 }
 function chair(x, z, ry = 0, parent = scene) {
-  const g = group(x, 0, z, ry, parent);
-  mesh(new THREE.CylinderGeometry(.3, .3, .04, 5), C.dark, 0, .08, 0, g);
-  mesh(new THREE.CylinderGeometry(.03, .03, .34, 8), '#8592a0', 0, .27, 0, g);
-  box(.52, .09, .5, C.chair, 0, .42, 0, g, .04);
-  box(.5, .58, .08, C.chair, 0, .55, -.26, g, .04);
+  // Kenney chairs face -z by default; our seated people face +z of the chair group
+  model('chairDesk', x, z, { ry: ry + Math.PI, parent, s: FURN * .95 });
 }
 function seatedAt(x, z, ry, i, female = false, parent = scene, data = null) {
   chair(x, z, ry, parent);
@@ -300,40 +334,28 @@ function seatedAt(x, z, ry, i, female = false, parent = scene, data = null) {
 }
 
 // ================================================================ furniture
-function desk(x, z, ry = 0, { w = 1.7, d = .8, parent = scene } = {}) {
+/** Workstation: desk against the wall (behind), monitor + keyboard on top. Facing +z is "front". */
+function desk(x, z, ry = 0, { parent = scene } = {}) {
   const g = group(x, 0, z, ry, parent);
-  box(w, .06, d, C.desk, 0, .72, 0, g, .03);
-  for (const s of [-1, 1]) box(.06, .72, d - .1, C.leg, s * (w / 2 - .08), 0, 0, g, .02);
-  box(.72, .46, .04, C.dark, 0, 1.0, -d / 2 + .16, g, .02);
-  mesh(new THREE.PlaneGeometry(.64, .38), '#bfe6ef', 0, 1.23, -d / 2 + .185, g, { emissive: '#bfe6ef', emissiveIntensity: .35 });
-  box(.06, .24, .06, '#8592a0', 0, .78, -d / 2 + .14, g, .02);
-  box(.5, .02, .16, '#fff', 0, .78, .06, g, .01);
-  box(.32, .015, .22, '#fff', w / 2 - .3, .78, .1, g, .005);
+  model('desk', 0, 0, { parent: g, sx: 1.15 });
+  model('screen', 0, -.2, { parent: g, y: .75, s: 2.0 });
+  model('keyboard', 0, .12, { parent: g, y: .75, s: 2.0 });
   return g;
 }
+/** Meeting table stretched to w × d metres. */
 function table(x, z, w, d, parent = scene) {
   const g = group(x, 0, z, 0, parent);
-  box(w, .08, d, '#f5f7fa', 0, .7, 0, g, .04);
-  box(w * .5, .7, d * .35, '#c5cfda', 0, 0, 0, g, .05);
+  const t = model('table', 0, 0, { parent: g, s: 1 });
+  if (t) { const b = new THREE.Box3().setFromObject(t).getSize(new THREE.Vector3()); t.scale.set(w / b.x, .76 / b.y, d / b.z); }
   return g;
 }
-function plant(x, z, s = 1, parent = scene) {
-  const g = group(x, 0, z, 0, parent);
-  mesh(new THREE.CylinderGeometry(.28 * s, .22 * s, .5 * s, 16), '#3f9bb5', 0, .25 * s, 0, g);
-  for (const [dx, dy, dz, r] of [[0, .85, 0, .34], [.18, .7, .1, .26], [-.17, .72, -.06, .27], [.03, 1.08, .05, .24]])
-    mesh(new THREE.SphereGeometry(r * s, 14, 10), '#4fb36a', dx * s, dy * s, dz * s, g);
-}
+function plant(x, z, s = 1, parent = scene) { model(s > .95 ? 'plantBig' : 'plantSmall', x, z, { parent, s: FURN * 1.25 * s }); }
 function shelf(x, z, ry = 0, w = 2.2, parent = scene) {
   const g = group(x, 0, z, ry, parent);
-  box(w, 2.1, .45, '#f3f5f8', 0, 0, 0, g, .03);
-  const cols = ['#7fa7d9', '#e58fa5', '#9fd3c7', '#b9a3e3', '#f2c46d', '#7fc7e8'];
-  for (let r = 0; r < 4; r++) for (let i = 0; i < Math.floor(w / .2) - 1; i++) box(.14, .38, .3, cols[(i + r) % 6], -w / 2 + .2 + i * .2, .18 + r * .48, .1, g, .02);
+  const n = Math.max(1, Math.round(w / 1.55));
+  for (let i = 0; i < n; i++) model('bookcase', -w / 2 + .78 + i * 1.56, 0, { parent: g, s: FURN * 1.25 });
 }
-function cabinet(x, z, ry = 0, parent = scene) {
-  const g = group(x, 0, z, ry, parent);
-  box(.7, 1.2, .6, '#eef1f5', 0, 0, 0, g, .04);
-  for (let i = 0; i < 3; i++) box(.3, .04, .02, '#9aa6b4', 0, .3 + i * .36, .31, g, .01);
-}
+function cabinet(x, z, ry = 0, parent = scene) { model('side', x, z, { ry, parent, s: FURN * 1.3 }); }
 function wallScreen(x, y, z, ry, w, h, draw, parent = scene) {
   const g = group(x, y, z, ry, parent);
   box(w + .14, h + .14, .08, C.dark, 0, -h / 2 - .07, 0, g, .03);
@@ -362,6 +384,15 @@ function wall(x1, z1, x2, z2, { h = 3.2, t = .3, doors = [], windows = [], color
   return g;
 }
 
+// ================================================================ city backdrop (Kenney city kit)
+(function backdrop() {
+  const behind = [['towerB', -62, -26, 6], ['bldA', -50, -24, 6.5], ['towerD', -22, -30, 6], ['lowW', -8, -28, 6.5], ['bldC', 8, -30, 6.5], ['towerE', 22, -30, 6],
+                  ['lowA', 36, -26, 6.5], ['bldH', 50, -24, 6.5], ['towerB', 62, -20, 5.5], ['lowC', 48, -6, 6.5], ['bldE', 56, 6, 6.5]];
+  for (const [k, x, z, sc] of behind) model(k, x, z, { s: sc });
+  const front = [['lowA', -62, 34, 6.5], ['bldC', -46, 34, 6.5], ['lowW', -28, 34, 6.5], ['bldE', -10, 34, 6.5], ['lowC', 8, 34, 6.5], ['bldA', 26, 34, 6.5], ['lowA', 44, 34, 6.5], ['bldH', 60, 34, 6.5]];
+  for (const [k, x, z, sc] of front) model(k, x, z, { s: sc, ry: Math.PI });
+})();
+
 // ================================================================ CLIENT SITE · ABC Infrastructure Ltd.
 const CLIENT = { x: -40, z: -2 };
 (function clientSite() {
@@ -369,28 +400,19 @@ const CLIENT = { x: -40, z: -2 };
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
   box(6, .17, 3.4, C.grass, X - 7.5, 0, Z + 7.5, scene, .05);
   box(6, .17, 3.4, C.grass, X + 7.5, 0, Z + 7.5, scene, .05);
-  const b = group(X, 0, Z - 2.5);
-  const W = 12, D = 8.5, F = 4, FH = 3.2;
-  const body = box(W, F * FH, D, '#4f7fd9', 0, 0, 0, b, .3);
-  info(body, { kind: 'Client HQ', icon: '🏢', title: 'ABC Infrastructure Ltd.', sub: 'Client · Bank Loan ₹ 450 Cr', chip: ['BD meeting done', ''], rows: [['Sector', 'Infrastructure / EPC'], ['Relationship', 'New client'], ['Deal owner', 'Rohan Mehta (BD)'], ['Address', 'BKC, Mumbai']] });
-  for (let f = 0; f < F; f++) {
-    const y = f * FH;
-    box(W + .14, .22, D + .14, '#ffffff', 0, y + FH - .22, 0, b, .05);
-    for (let i = 0; i < 5; i++) {
-      if (f === 0 && i === 2) continue;
-      mesh(RB(1.75, 1.9, .1, .05), M('#bcd9f3', { roughness: .15, metalness: .1 }), -W / 2 + 1.25 + i * 2.38, y + 1.5, D / 2 + .02, b).castShadow = false;
-    }
-    for (let i = 0; i < 3; i++)
-      mesh(RB(.1, 1.9, 1.75, .05), M('#c9e3f6', { roughness: .2 }), W / 2 + .02, y + 1.5, -D / 2 + 1.6 + i * 2.65, b).castShadow = false;
-  }
-  box(3, 2.6, .12, '#bfe0f5', 0, 0, D / 2 + .04, b, .03);
-  box(4.6, .2, 2.0, '#ffffff', 0, 2.8, D / 2 + 1.0, b, .06);
-  for (const s of [-1, 1]) box(.14, 2.8, .14, '#d5dde8', s * 2.1, 0, D / 2 + 1.8, b, .03);
-  box(W - .8, .7, D - .8, '#e9eef6', 0, F * FH, 0, b, .12);
-  box(10.4, 1.5, .16, '#ffffff', 0, F * FH + .7, D / 2 - .4, b, .06);
-  plane(10, 1.3, textTex('ABC INFRASTRUCTURE', { w: 2048, h: 256, size: 150, color: '#2e4f9c', spacing: 6 }), 0, F * FH + 1.45, D / 2 - .3, b, true);
-  // rooftop units
-  for (const s of [-1, 1]) box(1.6, .9, 1.2, '#cfd8e6', s * 3, F * FH + .7, -1.5, b, .1);
+  const b = group(X, 0, Z - 3);
+  const tw = model('tower', 0, 0, { parent: b, s: 6.2 });
+  const tb = tw ? new THREE.Box3().setFromObject(tw).getSize(new THREE.Vector3()) : new THREE.Vector3(8, 25, 8);
+  if (tw) info(tw, { kind: 'Client HQ', icon: '🏢', title: 'ABC Infrastructure Ltd.', sub: 'Client · Bank Loan ₹ 450 Cr', chip: ['BD meeting done', ''], rows: [['Sector', 'Infrastructure / EPC'], ['Relationship', 'New client'], ['Deal owner', 'Rohan Mehta (BD)'], ['Address', 'BKC, Mumbai']] });
+  const D = tb.z;
+  // entrance canopy
+  box(4.6, .2, 2.0, '#ffffff', 0, 3.0, D / 2 + 1.0, b, .06);
+  for (const s of [-1, 1]) box(.14, 3.0, .14, '#d5dde8', s * 2.1, 0, D / 2 + 1.8, b, .03);
+  // company sign on a podium in front
+  box(7.6, 1.1, .5, '#ffffff', -7.5, 0, D / 2 + 2.6, b, .12);
+  plane(7.2, .9, textTex('ABC INFRASTRUCTURE LTD.', { w: 2048, h: 256, size: 130, color: '#2e4f9c', spacing: 4 }), -7.5, .58, D / 2 + 2.86, b, true);
+  // rooftop sign
+  const rs = plane(tb.x * 1.05, 1.6, textTex('ABC', { size: 200, color: '#ffffff', spacing: 20 }), 0, tb.y + 1.0, D / 2 - .2, b, true);
   plant(X - 5, Z + 4.4, 1.1); plant(X + 5, Z + 4.4, 1.1);
   // parked cars in the client car park
   for (let i = 0; i < 3; i++) carModel({ x: X + 6 + i * 2.3, z: Z + 1, ry: Math.PI / 2, color: ['#ffffff', '#e8edf5', '#f2d8a7'][i], stripe: ['#4f7fd9', '#9aa6b4', '#c98a1b'][i] });
@@ -407,7 +429,10 @@ function BD_INFO(stage, doing) {
 }
 
 // ================================================================ cars
-function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = scene }) {
+
+function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = scene, kind = null }) {
+  const key = kind || ({ '#ffffff': 'sedan', '#e8edf5': 'suv', '#f2d8a7': 'taxi' })[color] || 'sedan';
+  if (ASSETS[key]) { const g = group(x, 0, z, ry, parent); model(key, 0, 0, { parent: g, s: 1.7, ry: Math.PI / 2 }); return g; }
   const g = group(x, 0, z, ry, parent);
   box(4.3, .78, 1.9, color, 0, .36, 0, g, .32);
   box(4.32, .12, 1.92, stripe, 0, .6, 0, g, .05);
@@ -457,6 +482,46 @@ box(.32, .06, A.z1 - A.z0, '#ffffff', A.x1, 3.2, (A.z0 + A.z1) / 2, office, .02)
 // ACER lettering on the outside of the left wall
 const sign = plane(9, 2, textTex('ACER', { size: 190, color: '#ffffff', spacing: 30 }), A.x0 - .17, 2.0, -10.2, office, true);
 sign.rotation.y = -Math.PI / 2;
+// ---- upper floors: glass office tower that fades away when you look inside
+const acerShell = group(0, FY, 0);
+const shellMats = [];
+const SM = (c, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: c, roughness: .35, metalness: .05, transparent: true, ...o }); m.userData.base = m.opacity; shellMats.push(m); return m; };
+const mGlass = SM('#7cc4cb', { opacity: .62, roughness: .1, metalness: .2 }), mSlab = SM('#ffffff'), mFin = SM('#f4f8fb'), mRoof = SM('#e3e9f2'), mTeal = SM('#3AA4A9');
+const BW = A.x1 - A.x0, BD = A.z1 - A.z0, BCX = (A.x0 + A.x1) / 2, BCZ = (A.z0 + A.z1) / 2;
+const sbox = (w, h, d, m, x, y, z, r = .05) => { const q = new THREE.Mesh(RB(w, h, d, r), m); q.position.set(x, y + h / 2, z); q.castShadow = true; q.receiveShadow = true; acerShell.add(q); return q; };
+// ground-floor facade (front glass + entrance) so the building reads as complete from outside
+sbox(BW - 5.6, 2.3, .12, mGlass, BCX + 2.8, .9, A.z1, .02);
+const FLOORS = 3, FLH = 3.4;
+for (let f = 0; f < FLOORS; f++) {
+  const y = 3.2 + f * FLH;
+  sbox(BW + .8, .4, BD + .8, mSlab, BCX, y, BCZ, .08);
+  sbox(BW, FLH - .4, BD, mGlass, BCX, y + .4, BCZ, .02);
+  for (let x = A.x0; x <= A.x1 + .01; x += 2.5) { sbox(.16, FLH - .4, .16, mFin, x, y + .4, A.z1 + .02, .03); sbox(.16, FLH - .4, .16, mFin, x, y + .4, A.z0 - .02, .03); }
+  for (let z = A.z0; z <= A.z1 + .01; z += 2.5) { sbox(.16, FLH - .4, .16, mFin, A.x0 - .02, y + .4, z, .03); sbox(.16, FLH - .4, .16, mFin, A.x1 + .02, y + .4, z, .03); }
+}
+const ROOF_Y = 3.2 + FLOORS * FLH;
+sbox(BW + 1.2, .6, BD + 1.2, mSlab, BCX, ROOF_Y, BCZ, .12);
+sbox(BW - 1, .2, BD - 1, mRoof, BCX, ROOF_Y + .6, BCZ, .05);
+sbox(BW + 1.2, .5, .3, mTeal, BCX, ROOF_Y + .2, A.z1 + .62, .05);
+for (const [x, z] of [[4, -10], [9, -10], [22, -8]]) sbox(2.2, 1.2, 1.6, mRoof, x, ROOF_Y + .8, z, .12);
+// rooftop ACER sign
+const roofSign = new THREE.Mesh(new THREE.PlaneGeometry(16, 3.4), new THREE.MeshBasicMaterial({ map: textTex('ACER', { size: 200, color: '#3AA4A9', spacing: 40 }), transparent: true, toneMapped: false }));
+roofSign.material.userData.base = 1; shellMats.push(roofSign.material);
+roofSign.position.set(BCX - 6, ROOF_Y + 2.6, A.z1 - 1); acerShell.add(roofSign);
+const roofSub = new THREE.Mesh(new THREE.PlaneGeometry(16, 1.2), new THREE.MeshBasicMaterial({ map: textTex('CREDIT RATING', { size: 90, color: '#2D6A67', spacing: 30 }), transparent: true, toneMapped: false }));
+roofSub.material.userData.base = 1; shellMats.push(roofSub.material);
+roofSub.position.set(BCX - 6, ROOF_Y + 1.1, A.z1 - 1); acerShell.add(roofSub);
+sbox(16.4, .25, .4, mTeal, BCX - 6, ROOF_Y + .6, A.z1 - 1.2, .05);
+info(acerShell.children[2], { kind: 'ACER HQ', icon: '🏛️', title: 'ACER Credit Rating · Mumbai', sub: 'SEBI-registered credit rating agency', chip: ['4 live cases', ''], rows: [['Ground floor', 'Proposal · Compliance · Rating · Committee · Published'], ['People', '22 on site'], ['Tip', 'Pick “ACER Office” to look inside']] });
+let shellAlpha = 1, shellTarget = 1;
+let insideLabels = null;
+function updateShell(dt) {
+  shellAlpha += (shellTarget - shellAlpha) * Math.min(1, dt * 4);
+  if (!insideLabels) { insideLabels = []; office.traverse(o => { if (o.isCSS2DObject) insideLabels.push(o); }); }
+  for (const l of insideLabels) l.visible = shellAlpha < .5;
+  acerShell.visible = shellAlpha > .02;
+  for (const m of shellMats) { m.opacity = m.userData.base * shellAlpha; m.depthWrite = shellAlpha > .98; }
+}
 // interior partitions
 const PW = { h: 2.3, t: .22, color: C.part };
 W(A.x0, A.mid, A.x1, A.mid, { ...PW, doors: [[9.6, 12], [24, 26.6]] });
@@ -630,7 +695,7 @@ renderList('rooms');
 
 // ================================================================ camera views
 const VIEWS = {
-  all: [new THREE.Vector3(-40, 78, 96), new THREE.Vector3(-4, 0, 2)],
+  all: [new THREE.Vector3(-46, 62, 84), new THREE.Vector3(-6, 4, -2)],
   acer: [new THREE.Vector3(-14, 46, 58), new THREE.Vector3(13, 0, -4)],
   client: [new THREE.Vector3(-70, 36, 46), new THREE.Vector3(-38, 4, -1)],
   road: [new THREE.Vector3(-36, 22, 40), new THREE.Vector3(-14, 0, 14)],
@@ -642,13 +707,15 @@ const VIEWS = {
 };
 const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
 let fly = null;
+const EXTERIOR = new Set(['all', 'client', 'road']);
 function flyTo(key, dur = 1.6) {
   const v = VIEWS[key]; if (!v) return;
+  shellTarget = EXTERIOR.has(key) ? 1 : 0;
   fly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: v[0].clone(), t1: v[1].clone(), t: 0, dur };
   const s = SITE_LABEL[key] || SITE_LABEL.acer;
   document.getElementById('siteTag').textContent = s[0]; document.getElementById('siteName').textContent = s[1]; document.getElementById('siteSub').textContent = s[2];
 }
-camera.position.copy(VIEWS.acer[0]); controls.target.copy(VIEWS.acer[1]);
+flyTo('all', .01);
 const menu = document.getElementById('menu');
 document.getElementById('siteBtn').onclick = () => menu.classList.toggle('open');
 menu.querySelectorAll('[data-site]').forEach(el => el.onclick = () => { menu.classList.remove('open'); flyTo(el.dataset.site); });
@@ -728,11 +795,12 @@ renderer.setAnimationLoop(() => {
     camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k);
     if (fly.t >= 1) fly = null;
   }
-  ambient(dt); stepReplay(dt);
+  ambient(dt); stepReplay(dt); updateShell(dt);
   controls.update();
   renderer.render(scene, camera); labels.render(scene, camera);
 });
-window.__flyNow = (k) => { const v = VIEWS[k]; camera.position.copy(v[0]); controls.target.copy(v[1]); fly = null; };
+window.__flyNow = (k) => { const v = VIEWS[k]; camera.position.copy(v[0]); controls.target.copy(v[1]); fly = null; shellTarget = shellAlpha = EXTERIOR.has(k) ? 1 : 0; };
+loading.remove();
 window.__ready = true;
 </script>
 </body>
