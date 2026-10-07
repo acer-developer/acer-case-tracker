@@ -1,0 +1,30 @@
+{
+  "source": "sample",
+  "generated": "2026-10-07T00:00:00+05:30",
+  "cases": [
+    { "id": "S1", "company": "ABC Infrastructure Ltd.", "caseType": "Rating Process", "instrument": "Bank Loan · ₹450 Cr",
+      "deal": { "stage": "All Done", "owner": "Rohan Mehta" }, "mandate": { "stage": "CCO Approved" },
+      "entity": { "status": "CRO Approved", "leadAnalyst": "Rahul Mehta" }, "rc": { "phase": "RC Completed", "meetingDate": "2026-09-24" },
+      "rating": { "longTerm": "ACER AA+", "outlook": "Stable" }, "invoice": { "total": 650000, "balance": 0, "dueDate": "2026-09-01" } },
+    { "id": "S2", "company": "Kavya Textiles Ltd.", "caseType": "Rating Process", "instrument": "NCD · ₹120 Cr",
+      "deal": { "stage": "Negotiation", "owner": "Neha Iyer" }, "invoice": null },
+    { "id": "S3", "company": "Shreeji Power Ltd.", "caseType": "Rating Process", "instrument": "Term Loan · ₹300 Cr",
+      "deal": { "stage": "All Done", "owner": "Vikram Rao" }, "mandate": { "stage": "CCO Approved" },
+      "entity": { "status": "LA Approval", "leadAnalyst": "Sneha Pillai" }, "rc": { "phase": "Voting Process Initiate", "meetingDate": "2026-10-08" },
+      "rating": { "longTerm": "ACER A", "outlook": "Positive" }, "invoice": { "total": 420000, "balance": 0, "dueDate": "2026-09-15" } },
+    { "id": "S4", "company": "Northbay Foods Ltd.", "caseType": "Rating Process", "instrument": "Bank Loan · ₹80 Cr",
+      "deal": { "stage": "All Done", "owner": "Rohan Mehta" }, "mandate": { "stage": "CCO Approved" },
+      "entity": { "status": "Surveillance Created", "leadAnalyst": "Kavita Joshi" }, "rc": { "phase": "RC Completed", "meetingDate": "2025-10-02" },
+      "rating": { "longTerm": "ACER BBB+", "outlook": "Stable" }, "invoice": { "total": 300000, "balance": 0 },
+      "surveillance": { "status": "COI Verified", "rcPhase": null } },
+    { "id": "S5", "company": "Meridian Ports Ltd.", "caseType": "IPO", "instrument": "IPO grading",
+      "deal": { "stage": "Accounts Review", "owner": "Neha Iyer" }, "invoice": { "total": 500000, "balance": 500000, "dueDate": "2026-09-20" } },
+    { "id": "S6", "company": "Orion Steel Ltd.", "caseType": "Rating Process", "instrument": "CP · ₹200 Cr",
+      "deal": { "stage": "All Done", "owner": "Vikram Rao" }, "mandate": { "stage": "CCO Approved" },
+      "entity": { "status": "Send to Client", "leadAnalyst": "Arjun Desai" }, "invoice": { "total": 350000, "balance": 150000, "dueDate": "2026-11-01" } },
+    { "id": "S7", "company": "Lotus Housing Finance", "caseType": "Rating Process", "instrument": "NCD · ₹75 Cr",
+      "deal": { "stage": "Initiated", "owner": "Rohan Mehta" }, "invoice": { "total": 200000, "balance": 0 } },
+    { "id": "S8", "company": "Zenith Agro Ltd.", "caseType": "Rating Process", "instrument": "Bank Loan · ₹60 Cr",
+      "deal": { "stage": "All Done", "owner": "Neha Iyer" }, "mandate": { "stage": "Drafted" }, "invoice": { "total": 180000, "balance": 180000, "dueDate": "2026-12-01" } }
+  ]
+}

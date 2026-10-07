@@ -85,6 +85,20 @@
   .bubble::after { content:""; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; background:#fff; transform:translateX(-50%) rotate(45deg); }
   .pin { width:26px; height:26px; border-radius:50% 50% 50% 0; background:var(--teal); transform:rotate(-45deg) translate(4px,-6px); box-shadow:0 3px 8px rgba(0,0,0,.2); }
   .pin::after { content:""; position:absolute; inset:8px; border-radius:50%; background:#fff; }
+  .results { position:absolute; top:44px; left:0; width:100%; padding:6px; display:none; max-height:340px; overflow:auto; z-index:9; }
+  .results.open { display:block; }
+  .results div { padding:8px 10px; border-radius:8px; cursor:pointer; display:flex; justify-content:space-between; gap:8px; font-size:12.5px; color:var(--ink); }
+  .results div:hover, .results div.hl { background:#f2f6fb; }
+  .results small { color:var(--muted); }
+  .seg { display:flex; background:#f2f6fb; border-radius:9px; padding:3px; }
+  .seg button { border:0; background:transparent; font:800 11.5px Inter; color:var(--muted); padding:6px 12px; border-radius:7px; cursor:pointer; }
+  .seg button.on { background:#fff; color:var(--teal-d); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .src { font:700 10.5px Inter; color:var(--muted); background:#f2f6fb; padding:5px 9px; border-radius:999px; }
+  .src.live { background:#e8f6ef; color:#1f7a5c; }
+  .stages { display:flex; gap:6px; margin-top:10px; }
+  .stages div { flex:1; text-align:center; font:700 10.5px Inter; padding:6px 4px; border-radius:8px; background:#f2f6fb; color:#a7b4c2; }
+  .stages div.done { background:#e6f4f4; color:var(--teal-d); }
+  .stages div.now { background:var(--teal); color:#fff; }
   .hint { position:fixed; left:50%; bottom:200px; transform:translateX(-50%); font:600 11.5px Inter; color:#5d6c80; background:rgba(255,255,255,.8); padding:5px 12px; border-radius:999px; z-index:3; }
 </style>
 <script type="importmap">
@@ -99,7 +113,7 @@
 
 <div class="top">
   <div class="logo"><i>A</i>ACER</div>
-  <div class="search">⌕ <input id="q" value="ABC Infrastructure Ltd." aria-label="Search company or deal" /><kbd>/</kbd></div>
+  <div class="search" style="position:relative">⌕ <input id="q" value="" placeholder="Search company / deal" autocomplete="off" aria-label="Search company or deal" /><kbd>/</kbd><div class="card results" id="results"></div></div>
   <div class="site">
     <button class="site-btn" id="siteBtn"><span class="tag" id="siteTag">ACER</span><span><b id="siteName">ACER Office · Mumbai</b><small id="siteSub">5 rooms · 22 people · 4 live cases</small></span> ▾</button>
     <div class="card menu" id="menu">
@@ -110,15 +124,18 @@
     </div>
   </div>
   <div class="live" id="clock">Live 10:42</div>
+  <div class="seg" id="viewSeg"><button data-view="ED" class="on">ED</button><button data-view="CRO">CRO</button></div>
+  <div class="src" id="dataSrc">sample data</div>
   <div class="sp"></div>
   <button class="btn" id="replay">▶ Replay Journey</button>
   <div class="user"><div class="avatar">ED</div><div>Executive Director<span>Admin · ED | CRO</span></div></div>
 </div>
 
 <div class="kpis">
-  <div class="card kpi"><div class="ic">◆</div><div><div class="l">Active deals</div><div class="v">38<em>↑ 4</em></div><div class="s">pipeline · this month</div></div></div>
-  <div class="card kpi"><div class="ic">◐</div><div><div class="l">Rating WIP</div><div class="v">21<em>↑ 2</em></div><div class="s">with Rating Team</div></div></div>
-  <div class="card kpi"><div class="ic">★</div><div><div class="l">Published</div><div class="v">64<em>↑ 3</em></div><div class="s">last 30 days</div></div></div>
+  <div class="card kpi"><div class="ic">◆</div><div><div class="l">Active deals</div><div class="v" id="k-deals">–</div><div class="s">pitching + pricing</div></div></div>
+  <div class="card kpi"><div class="ic">◐</div><div><div class="l">Rating WIP</div><div class="v" id="k-wip">–</div><div class="s">with Rating Team / RC</div></div></div>
+  <div class="card kpi"><div class="ic">★</div><div><div class="l">Published</div><div class="v" id="k-pub">–</div><div class="s">ratings released</div></div></div>
+  <div class="card kpi"><div class="ic" style="background:#fbeceb;color:#c8574d">!</div><div><div class="l">Attention</div><div class="v" id="k-att">–</div><div class="s">fixed-rule alerts</div></div></div>
 </div>
 
 <div class="ctrl"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="home" title="Reset view">⌂</button></div>
@@ -126,12 +143,13 @@
 <div class="card detail" id="detail"></div>
 
 <div class="card track">
-  <div class="hd"><b>▣ Company Journey · ABC Infrastructure Ltd.</b><span id="j-now"></span></div>
+  <div class="hd"><b id="j-title">▣ Company Journey</b><span id="j-now"></span></div>
+  <div class="stages" id="bizStages"></div>
   <div class="steps" id="steps"><div class="prog" id="prog"></div></div>
 </div>
 
 <div class="card list">
-  <div class="tabs"><button class="on" data-tab="rooms">Rooms 5</button><button data-tab="cases">Cases 4</button><button data-tab="people">People 22</button></div>
+  <div class="tabs"><button class="on" data-tab="cases" id="tab-cases">Cases</button><button data-tab="attention" id="tab-att">Attention</button><button data-tab="rooms">Rooms</button></div>
   <div id="listBody"></div>
 </div>
 
@@ -144,6 +162,17 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { ED_STAGES, CRO_STAGES, classify, alerts, ratingText } from './js/stages.js';
+
+// ================================================================ case data (Zoho CRM snapshot → data/cases.json, else sample)
+let DATA = null;
+for (const f of ['data/cases.json', 'data/sample-cases.json']) {
+  try { const r = await fetch(f, { cache: 'no-store' }); if (r.ok) { DATA = await r.json(); break; } } catch (e) { /* try next */ }
+}
+const ALL_CASES = (DATA?.cases || []).map(c => ({ ...c, k: classify(c), al: alerts(c) }));
+const CASES = ALL_CASES.filter(c => c.k);
+let currentCase = CASES.find(c => /ABC Infrastructure/i.test(c.company)) || CASES[0];
+let viewMode = 'ED';
 
 // ================================================================ 3D assets (Kenney, CC0 — see assets/LICENSE-kenney.txt)
 const loading = document.createElement('div');
@@ -738,9 +767,9 @@ function drawRC(state) {
     g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText('RATING COMMITTEE', 30, 52);
     if (state === 'done') {
       g.fillStyle = '#2D6A67'; g.font = '900 92px Inter'; g.fillText('VOTE: 5/5', 30, 168);
-      g.fillStyle = '#3AA4A9'; g.font = '800 38px Inter'; g.fillText('AA+ · Stable', 30, 226);
+      g.fillStyle = '#3AA4A9'; g.font = '800 38px Inter'; g.fillText(currentCase ? ratingText(currentCase) : '', 30, 226);
     } else if (state === 'voting') {
-      g.fillStyle = '#1d2733'; g.font = '800 42px Inter'; g.fillText('ABC Infrastructure Ltd.', 30, 130);
+      g.fillStyle = '#1d2733'; g.font = '800 42px Inter'; g.fillText(currentCase?.company || '', 30, 130);
       g.fillStyle = '#c98a1b'; g.font = '800 36px Inter'; g.fillText('● Voting in progress…', 30, 200);
     } else {
       g.fillStyle = '#9aa6b4'; g.font = '700 38px Inter'; g.fillText('Waiting for the case file', 30, 150);
@@ -778,8 +807,8 @@ function drawPub(done) {
   pubWall.draw((g, w, h) => {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = done ? '#3AA4A9' : '#c5ced8'; g.fillRect(0, 0, w, 18);
     g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText(done ? 'RATING PUBLISHED' : 'RATING · NOT YET RELEASED', 40, 74);
-    g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText('ABC Infrastructure Ltd.', 40, 138);
-    if (done) { g.fillStyle = '#2D6A67'; g.font = '900 100px Inter'; g.fillText('ACER AA+', 40, 262); g.fillStyle = '#3AA4A9'; g.font = '800 42px Inter'; g.fillText('Stable', 560, 258); }
+    g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText(currentCase?.company || '', 40, 138);
+    if (done) { const r = currentCase?.rating || {}; g.fillStyle = '#2D6A67'; g.font = '900 96px Inter'; g.fillText(r.longTerm || r.ipo || '—', 40, 262); g.fillStyle = '#3AA4A9'; g.font = '800 42px Inter'; g.fillText(r.outlook || '', 560, 258); }
     else { g.fillStyle = '#9aa6b4'; g.font = '700 40px Inter'; g.fillText('Awaiting Rating Committee decision', 40, 244); }
   });
 }
@@ -807,11 +836,6 @@ function pathDashes(pts, y, parent) {
     for (let t = .3; t < len; t += .8) { const d = new THREE.Mesh(new THREE.PlaneGeometry(.35, .1), dm); d.rotation.set(-Math.PI / 2, 0, -ang); d.position.set(ax + Math.cos(ang) * t, y, az + Math.sin(ang) * t); parent.add(d); }
   }
 }
-pathDashes([[CLIENT.x + 1, CLIENT.z + 7.4], [CLIENT.x + 3.5, 11.6], [9.6, 11.6], [9.6, 9.6]], .17, scene);
-pathDashes([[9.6, 7], [3.6, 4.6], [3.8, 3.8], [6.6, 3.8], [6.6, -8.5], [3.3, -8.5], [3.3, -12.4]], .05, office);
-pathDashes([[3.3, -8.5], [16, -8.5], [16, -12.4]], .05, office);
-pathDashes([[16, -8.5], [28.7, -8.5], [28.7, -12.4]], .05, office);
-pathDashes([[22, -8.5], [24, -2], [27.5, 1.5]], .05, office);
 numDisc(1, CLIENT.x + 1, CLIENT.z + 7.4, .18); numDisc(2, -18, ROAD_Z - 4.2, .2);
 [[3, 3.6, 4.6], [4, 3.3, -11.4], [5, 9.5, -8.5], [6, 16, -11.4], [7, 28.7, -11.4], [8, 26.4, 1.6]].forEach(([n, x, z]) => numDisc(n, x, z, .06, office));
 
@@ -854,8 +878,19 @@ function showBrackets(obj) {
     pts.push(x, y, z, x + sx * L, y, z, x, y, z, x, y + sy * L, z, x, y, z, x, y, z + sz * L);
   }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  selGroup.add(new THREE.LineSegments(geo, selMat));
+  const ls = new THREE.LineSegments(geo, selMat); ls.renderOrder = 10; ls.material.depthTest = false; selGroup.add(ls);
+  const d = obj.userData.info;
+  if (d) {
+    const el = document.createElement('div'); el.className = 'tag3 sel';
+    el.innerHTML = `${d.title}${d.chip ? ` <em>${d.chip[0]}</em>` : ''}`;
+    const tag = new CSS2DObject(el); tag.position.set((b.min.x + b.max.x) / 2, b.max.y + .4, (b.min.z + b.max.z) / 2); selGroup.add(tag);
+  }
 }
+// destination highlight (pulsing teal pad) — shows where the robot / BD is heading
+const destPad = new THREE.Mesh(new THREE.RingGeometry(.55, .95, 40), new THREE.MeshBasicMaterial({ color: '#3AA4A9', transparent: true, opacity: .5, toneMapped: false, side: THREE.DoubleSide }));
+destPad.rotation.x = -Math.PI / 2; destPad.visible = false; office.add(destPad);
+function showDest(x, z) { destPad.position.set(x, .07, z); destPad.visible = true; }
+function hideDest() { destPad.visible = false; }
 
 // ================================================================ detail card
 const detail = document.getElementById('detail');
@@ -866,8 +901,14 @@ function showInfo(d) {
     <div class="rows">${(d.rows || []).map(([a, b]) => `<div class="row"><span>${a}</span><b>${b}</b></div>`).join('')}</div>`;
   document.getElementById('x').onclick = () => { showInfo(CASE_INFO()); showBrackets(null); };
 }
-const CASE_INFO = () => ({ kind: 'Case · ACR/2026/0847', icon: '📁', title: 'ABC Infrastructure Ltd.', sub: 'Bank Loan Facilities · ₹ 450 Cr · Initial rating', chip: [STEPS[stepNow].chip, ''], progress: Math.round(100 * (stepNow + 1) / 8),
-  rows: [['Current stage', STEPS[stepNow].t], ['Where', STEPS[stepNow].where], ['With', STEPS[stepNow].who], ['Deal owner', 'Rohan Mehta (BD)'], ['Invoice', 'Paid · ₹ 6.5 L (Zoho Books)']] });
+const CASE_INFO = () => {
+  const c = currentCase; if (!c) return { kind: 'No data', title: 'No cases loaded', rows: [] };
+  const k = c.k, pay = k.pay, rating = k.ratingVisible ? ratingText(c) : 'Hidden until RC vote';
+  const rows = [['ED stage', k.ed], ['CRO stage', k.cro || '—'], ['Status', k.status], ['With', k.withWhom],
+    ['Deal owner', c.deal?.owner || '—'], ['Lead analyst', c.entity?.leadAnalyst || '—'], ['Invoice', c.invoice ? `${pay.status} · ₹ ${(pay.paid / 1e5).toFixed(1)} L paid` : 'No invoice'], ['Rating', rating]];
+  if (viewMode === 'CRO' && k.survStage) rows.push(['Surveillance', k.survStage]);
+  return { kind: `Case · ${c.caseType || 'Rating Process'}`, icon: '📁', title: c.company, sub: c.instrument || '', chip: [k.ratingVisible ? `${k.ed} · ${ratingText(c)}` : `${k.ed} · ${k.status}`, c.al.length ? 'red' : ''], progress: Math.round(100 * (stepNow + 1) / 8), rows };
+};
 
 // ================================================================ journey
 const STEPS = [
@@ -892,23 +933,65 @@ function setStep(n) {
   });
   document.getElementById('prog').style.width = (87.5 * stepNow / 7) + '%';
   document.getElementById('j-now').textContent = `Step ${stepNow + 1} of 8 · ${STEPS[stepNow].where}`;
+  renderStages();
   showInfo(CASE_INFO());
+}
+const STORY_ED = ['Pitching', 'Pricing', 'Pricing', 'Mandate', 'Rating WIP', 'Rating WIP', 'Rating WIP', 'Published'];
+const STORY_CRO = [null, null, null, null, 'Team Allocation', 'Analysis', 'Committee', 'Published'];
+function renderStages() {
+  const list = viewMode === 'ED' ? ED_STAGES : CRO_STAGES;
+  let cur = replay ? (viewMode === 'ED' ? STORY_ED : STORY_CRO)[stepNow] : (viewMode === 'ED' ? currentCase?.k.ed : currentCase?.k.cro);
+  if (!replay && viewMode === 'CRO' && currentCase?.k.survStage && currentCase.k.ed === 'Published') cur = 'Surveillance';
+  const idx = list.indexOf(cur);
+  document.getElementById('bizStages').innerHTML = list.map((n, i) => `<div class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${i < idx ? '✓ ' : ''}${n}</div>`).join('');
+  document.getElementById('j-title').textContent = `▣ ${currentCase?.company || 'Company'} · ${viewMode} view`;
 }
 
 // ================================================================ list panel
-const LISTS = {
-  rooms: [['Proposal Desk', 'Front-left', 'Approved', 100, 'proposal'], ['Compliance · CCO', 'Back-left', 'Approved', 100, 'compliance'], ['Rating Team', 'Boardroom', 'Working', 70, 'rating'], ['Rating Committee', 'Meeting room', 'Voting', 90, 'committee'], ['Published', 'Lobby', 'Released', 100, 'published']],
-  cases: [['ABC Infrastructure', 'Bank Loan ₹450 Cr', 'Published', 100, 'published'], ['Kavya Textiles', 'NCD ₹120 Cr', 'Negotiation', 35, 'proposal'], ['Shreeji Power', 'Term loan ₹300 Cr', 'Voting', 85, 'committee'], ['Northbay Foods', 'Surveillance', 'Analysis', 55, 'rating']],
-  people: [['Rohan Mehta', 'BD', 'With client', 20, 'client'], ['Anil Kapoor', 'CCO', 'Reviewing', 60, 'compliance'], ['Rahul Mehta', 'Lead Analyst', 'Rating note', 70, 'rating'], ['Dr. R. Menon', 'RC Chair', 'Voting', 90, 'committee'], ['Ramesh Iyer', 'CRO', 'Approved', 100, 'published']],
-};
+const ROOM_OF_STEP = ['client', 'road', 'proposal', 'compliance', 'rating', 'rating', 'committee', 'published'];
 const listBody = document.getElementById('listBody');
-function renderList(tab) {
+let listTab = 'cases';
+function renderList(tab = listTab) {
+  listTab = tab;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  listBody.innerHTML = LISTS[tab].map(([a, b, c, p, site]) => `<div class="li" data-site="${site}"><div><b>${a}</b><small>${b}</small></div><div class="mini"><i style="width:${p}%"></i></div><span class="chip ${p < 50 ? 'warn' : ''}">${c}</span><small style="text-align:right">${p}%</small></div>`).join('');
-  listBody.querySelectorAll('.li').forEach(el => el.onclick = () => flyTo(el.dataset.site));
+  const att = ALL_CASES.flatMap(c => c.al.filter(a => a.view === viewMode).map(a => ({ c, a })));
+  document.getElementById('tab-cases').textContent = `Cases ${CASES.length}`;
+  document.getElementById('tab-att').textContent = `Attention ${att.length}`;
+  let rows = [];
+  if (tab === 'cases') rows = CASES.map(c => { const st = viewMode === 'ED' ? c.k.ed : (c.k.cro || '—'); const p = Math.round(100 * (c.k.step + 1) / 8);
+    return `<div class="li" data-id="${c.id}"><div><b>${c.company}</b><small>${c.instrument || c.caseType || ''}</small></div><div class="mini"><i style="width:${p}%"></i></div><span class="chip ${c.al.length ? 'red' : p < 50 ? 'warn' : ''}">${st}</span><small style="text-align:right">${c.k.status}</small></div>`; });
+  if (tab === 'attention') rows = att.length ? att.map(({ c, a }) => `<div class="li" data-id="${c.id}"><div><b>${c.company}</b><small>Open: ${a.open}</small></div><div></div><span class="chip red">${a.text}</span><small></small></div>`) : ['<div class="li"><div><b>No alerts</b><small>All rules pass</small></div></div>'];
+  if (tab === 'rooms') rows = ['proposal', 'compliance', 'rating', 'committee', 'published'].map(r => { const n = CASES.filter(c => ROOM_OF_STEP[c.k.step] === r).length;
+    return `<div class="li" data-site="${r}"><div><b>${ROOMS[r]?.name || r}</b><small>${n} case${n === 1 ? '' : 's'} here</small></div><div class="mini"><i style="width:${Math.min(100, n * 25)}%"></i></div><span class="chip">${n}</span><small></small></div>`; });
+  listBody.innerHTML = rows.join('');
+  listBody.querySelectorAll('.li').forEach(el => el.onclick = () => { if (el.dataset.id) selectCase(CASES.find(c => c.id === el.dataset.id) || ALL_CASES.find(c => c.id === el.dataset.id)); else if (el.dataset.site) flyTo(el.dataset.site); });
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => renderList(b.dataset.tab));
-renderList('rooms');
+function renderKPIs() {
+  document.getElementById('k-deals').textContent = CASES.filter(c => c.k.ed === 'Pitching' || c.k.ed === 'Pricing').length;
+  document.getElementById('k-wip').textContent = CASES.filter(c => c.k.ed === 'Rating WIP').length;
+  document.getElementById('k-pub').textContent = CASES.filter(c => c.k.ed === 'Published').length;
+  document.getElementById('k-att').textContent = ALL_CASES.reduce((n, c) => n + c.al.filter(a => a.view === viewMode).length, 0);
+}
+// ED | CRO switch
+document.querySelectorAll('#viewSeg button').forEach(b => b.onclick = () => {
+  viewMode = b.dataset.view; document.querySelectorAll('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
+  renderKPIs(); renderList(); renderStages(); showInfo(CASE_INFO());
+});
+// search
+const q = document.getElementById('q'), results = document.getElementById('results');
+function renderResults() {
+  const t = q.value.trim().toLowerCase();
+  const hits = CASES.filter(c => !t || c.company.toLowerCase().includes(t)).slice(0, 12);
+  results.innerHTML = hits.map(c => `<div data-id="${c.id}"><span>${c.company}</span><small>${viewMode === 'ED' ? c.k.ed : (c.k.cro || c.k.ed)}</small></div>`).join('') || '<div><small>No match</small></div>';
+  results.classList.add('open');
+  results.querySelectorAll('[data-id]').forEach(el => el.onmousedown = () => { selectCase(CASES.find(c => c.id === el.dataset.id)); results.classList.remove('open'); });
+}
+q.addEventListener('focus', renderResults); q.addEventListener('input', renderResults);
+q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
+q.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = q.value.trim().toLowerCase(); const c = CASES.find(x => x.company.toLowerCase().includes(t)); if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } } });
+document.getElementById('dataSrc').textContent = DATA?.source === 'zoho' ? `Zoho CRM · ${new Date(DATA.generated).toLocaleString()}` : 'sample data';
+if (DATA?.source === 'zoho') document.getElementById('dataSrc').classList.add('live');
 
 // ================================================================ camera views
 const VIEWS = {
@@ -965,7 +1048,28 @@ renderer.domElement.addEventListener('pointerup', e => {
 const walker = person({ tie: C.teal, carry: C.teal, variant: 0 });
 walker.visible = false;
 info(walker, BD_INFO('Replay', 'Walking the ABC Infrastructure journey'));
-const youAreHere = label('<div class="pin"></div>', '', 0, 3.0, 0, pubBD); youAreHere.visible = false; youAreHere.userData.want = false; youAreHere.userData.want = false;
+const hereAnchor = new THREE.Object3D(); scene.add(hereAnchor);
+const youAreHere = label('<div class="pin"></div>', '', 0, 3.4, 0, hereAnchor); youAreHere.visible = false;
+const HERE = [[CLIENT.x, 0, CLIENT.z + 5.5], [-18, 0, ROAD_Z - 1.8], [1.8, FY, -2.4], [-.6, FY, -16.5], [BOT_PARK.rating[0], FY, BOT_PARK.rating[1]], [16, FY, -16.4], [31, FY, -16.4], [31.6, FY, .3]];
+/** Put the office into the state of a given journey step (no animation). */
+function setCaseState(t) {
+  walker.visible = false;
+  CLIENT_FIGS.forEach(f => f.visible = t <= 1); if (t > 0 && CLIENT_FIGS[2]) CLIENT_FIGS[2].visible = t === 0;
+  const park = t <= 3 ? BOT_PARK.compliance : t <= 5 ? BOT_PARK.rating : BOT_PARK.committee;
+  bot.position.set(park[0], 0, park[1]); bot.rotation.y = t <= 3 ? 0 : Math.PI;
+  setBotTag(t <= 3 ? 'waiting at Compliance' : t <= 5 ? 'parked · Rating Team' : 'parked · Committee');
+  drawRC(t < 6 ? 'idle' : (currentCase?.k.ratingVisible ? 'done' : 'voting'));
+  RC_PEOPLE.forEach(p => p.userData.play(t === 6 && !currentCase?.k.ratingVisible ? 'vote' : 'sit'));
+  setPublished(t === 7);
+  hereAnchor.position.set(...HERE[t]); youAreHere.visible = true;
+  hideDest();
+}
+function selectCase(c) {
+  if (!c) return; if (!c.k) { showInfo({ kind: 'Hidden case', title: c.company, sub: 'Deal lost / mandate dropped', chip: [c.al[0]?.text || 'Not on the dashboard', 'red'], rows: [] }); return; }
+  replay = null; currentCase = c; q.value = c.company;
+  try { history.replaceState(null, '', '?q=' + encodeURIComponent(c.company)); } catch {}
+  setCaseState(c.k.step); setStep(c.k.step); renderList(); flyTo(STEPS[c.k.step].site, 1.6);
+} youAreHere.userData.want = false;
 let replay = null;
 const CAR_Z = ROAD_Z - 1.8;
 const W_SPEED = 3.2, BOT_SPEED = 3.0, CAR_SPEED = 11;
@@ -976,7 +1080,7 @@ function finalState() {
 }
 function SCRIPT() {
   const at = (x, z, y = 0) => [x, z, y];
-  const step = (n, view) => () => { setStep(n); if (view) flyTo(view, 1.4); };
+  const step = (n, view) => () => { if (replay && n > replay.target) { replay.stop = true; return; } setStep(n); if (view) flyTo(view, 1.4); };
   return [
     { kind: 'call', fn: () => {
       CLIENT_FIGS.forEach(f => f.visible = true); CLIENT_FIGS[1].visible = false;
@@ -999,13 +1103,13 @@ function SCRIPT() {
     { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(.6, -1.0, FY), at(3.8, 3.8, FY), at(6.6, 3.8, FY), at(6.6, -8.5, FY), at(3.3, -8.5, FY), at(3.3, -13.2, FY), at(1.0, -15.2, FY)], onStart: step(3, 'compliance') },
     { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
     { kind: 'wait', d: 1.8 },
-    { kind: 'call', fn: () => { walker.visible = false; setBotTag('case file → Rating Team'); step(4, 'rating')(); } },
+    { kind: 'call', fn: () => { walker.visible = false; setBotTag('case file → Rating Team'); showDest(...BOT_PARK.rating); step(4, 'rating')(); } },
     { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.compliance), at(3.3, -12.4), at(3.3, -8.5), at(16, -8.5), at(16, -13.9), at(...BOT_PARK.rating)] },
-    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Rating Team'); step(5)(); } },
+    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; hideDest(); setBotTag('delivered · Rating Team'); step(5)(); } },
     { kind: 'wait', d: 2.8 },
-    { kind: 'call', fn: () => { setBotTag('rating note → Committee'); step(6, 'committee')(); } },
+    { kind: 'call', fn: () => { setBotTag('rating note → Committee'); showDest(...BOT_PARK.committee); step(6, 'committee')(); } },
     { kind: 'move', obj: bot, speed: BOT_SPEED, path: [at(...BOT_PARK.rating), at(16, -13.9), at(16, -8.5), at(28.7, -8.5), at(...BOT_PARK.committee)] },
-    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; setBotTag('delivered · Committee'); drawRC('voting'); RC_PEOPLE.forEach(p => p.userData.play('vote')); } },
+    { kind: 'call', fn: () => { bot.rotation.y = Math.PI; hideDest(); setBotTag('delivered · Committee'); drawRC('voting'); RC_PEOPLE.forEach(p => p.userData.play('vote')); } },
     { kind: 'wait', d: 2.6 },
     { kind: 'call', fn: () => { drawRC('done'); RC_PEOPLE.forEach(p => p.userData.play('sit')); setBotTag('parked · Committee'); } },
     { kind: 'wait', d: 1.4 },
@@ -1013,15 +1117,16 @@ function SCRIPT() {
     { kind: 'wait', d: 1.0 },
   ];
 }
-document.getElementById('replay').onclick = () => { replay = { q: SCRIPT(), cur: null }; };
+document.getElementById('replay').onclick = () => { if (!currentCase) return; introDone = true; replay = { q: SCRIPT(), cur: null, target: currentCase.k.step }; };
+function finishAt(t) { replay = null; setCaseState(t); setStep(t); flyTo(STEPS[t].site, 1.4); }
 function stepReplay(dt) {
   if (!replay) return;
   let s = replay.cur;
   if (!s) {
     s = replay.cur = replay.q.shift();
-    if (!s) { replay = null; setStep(7); return; }
-    s.t = 0; s.i = 0; s.onStart?.();
-    if (s.kind === 'call') { s.fn(); replay.cur = null; return; }
+    if (!s) { const t = replay.target; finishAt(t); return; }
+    s.t = 0; s.i = 0; s.onStart?.(); if (replay?.stop) { finishAt(replay.target); return; }
+    if (s.kind === 'call') { s.fn(); if (replay?.stop) { finishAt(replay.target); return; } if (replay) replay.cur = null; return; }
   }
   if (s.kind === 'wait') { s.t += dt; if (s.t >= s.d) replay.cur = null; return; }
   const a = s.path[s.i], b = s.path[s.i + 1];
@@ -1037,16 +1142,34 @@ function stepReplay(dt) {
 // ================================================================ ambient life
 const clock = new THREE.Clock();
 let T = 0;
+const LANE_WALKERS = [
+  { p: person({ variant: 6, parent: office }), path: [[7.5, -8.5], [25, -8.5], [25, -7.6], [7.5, -7.6]], t: 0, speed: 1.1 },
+  { p: person({ variant: 9, female: true, parent: office }), path: [[24, 4.5], [8, 4.5], [8, 5.2], [24, 5.2]], t: .4, speed: .9 },
+];
+LANE_WALKERS.forEach(w => { w.p.userData.play('walk'); info(w.p, { kind: 'ACER staff', icon: '🚶', title: 'Staff member', sub: 'Moving between rooms', chip: ['Walking', 'grey'], rows: [] }); });
+function walkLoop(w, dt) {
+  const segs = w.path.map((a, i) => [a, w.path[(i + 1) % w.path.length]]);
+  const lens = segs.map(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1])), total = lens.reduce((x, y) => x + y, 0);
+  w.t = (w.t + dt * w.speed / total) % 1;
+  let d = w.t * total, i = 0; while (d > lens[i]) { d -= lens[i]; i++; }
+  const [a, b] = segs[i], k = d / lens[i];
+  w.p.position.set(a[0] + (b[0] - a[0]) * k, 0, a[1] + (b[1] - a[1]) * k);
+  w.p.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
+}
 function ambient(dt) {
   T += dt;
+  LANE_WALKERS.forEach(w => walkLoop(w, dt));
+  if (destPad.visible) { const k = 1 + Math.sin(T * 4) * .12; destPad.scale.set(k, k, 1); }
   if (!replay && !window.__heroCar) { car.position.x = -70 + ((T * 6) % 100); car.position.z = CAR_Z; }
   traffic[0].position.x = 40 - ((T * 6) % 110); traffic[1].position.x = -20 - ((T * 4.5 + 40) % 110) + 60;
   const d = new Date(); document.getElementById('clock').textContent = 'Live ' + d.toTimeString().slice(0, 5);
 }
 
 // ================================================================ loop
-finalState();
-setStep(7);
+renderKPIs(); renderList('cases');
+const QS = new URLSearchParams(location.search).get('q');
+if (QS) { const t = QS.toLowerCase(); const hit = CASES.find(c => c.company.toLowerCase().includes(t) || c.id.toLowerCase() === t); if (hit) currentCase = hit; }
+if (currentCase) { setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); });
 addEventListener('keydown', e => { if (e.key === '/') { e.preventDefault(); document.getElementById('q').focus(); } });
 function frame(dt) {

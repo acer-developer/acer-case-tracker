@@ -1,0 +1,35 @@
+name: Deploy ACER office website
+
+on:
+  push:
+    branches: [main]
+    paths: ['prototype/acer-office-3d/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      # This repo is public, so the public site only ever ships sample data.
+      - run: rm -f prototype/acer-office-3d/data/cases.json
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: prototype/acer-office-3d
+      - id: deployment
+        uses: actions/deploy-pages@v4
