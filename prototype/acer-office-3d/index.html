@@ -83,6 +83,9 @@
   .track .hd { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; font-size:12px; }
   .track .hd b { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .track .hd span { color:var(--muted); font-size:10.5px; white-space:nowrap; }
   .stages { display:none; }
+  .track .jr { display:flex; align-items:center; gap:10px; min-width:0; }
+  .lnk { border:0; background:var(--accent-l); color:var(--accent-d); font:700 10.5px var(--ui); padding:4px 10px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .lnk:hover { background:var(--accent); color:#fff; }
   .steps { display:grid; grid-template-columns:repeat(8,1fr); position:relative; }
   .steps::before { content:""; position:absolute; left:6.25%; right:6.25%; top:11px; height:2px; background:var(--line); }
   .prog { position:absolute; left:6.25%; top:11px; height:2px; background:var(--accent); transition:width .5s; }
@@ -155,7 +158,7 @@
     <div class="card menu" id="menu">
       <div data-site="all"><span class="tag">ALL</span><span><b>Network overview</b><small>Client sites + ACER office</small></span></div>
       <div data-site="acer"><span class="tag">ACER</span><span><b>ACER Office · Mumbai</b><small>Proposal → Compliance → Rating → Committee → Published</small></span></div>
-      <div data-site="client"><span class="tag">ABC</span><span><b>ABC Infrastructure Ltd.</b><small>Client HQ · BD meeting</small></span></div>
+      <div data-site="client"><span class="tag">CL</span><span><b>Client site</b><small>Client HQ · BD meeting</small></span></div>
       <div data-site="road"><span class="tag">ROAD</span><span><b>On the road</b><small>BD driving to ACER</small></span></div>
     </div>
   </div>
@@ -177,7 +180,7 @@
 <div class="card detail" id="detail"></div>
 
 <div class="card track">
-  <div class="hd"><b id="j-title">▣ Company Journey</b><span id="j-now"></span></div>
+  <div class="hd"><b id="j-title">Company Journey</b><span class="jr"><span id="j-now"></span><button class="lnk" id="caseBtn">Details</button></span></div>
   <div class="stages" id="bizStages"></div>
   <div class="steps" id="steps"><div class="prog" id="prog"></div></div>
 </div>
@@ -290,13 +293,13 @@ scene.background = new THREE.Color('#e4e9f7');
 scene.fog = new THREE.Fog('#e4e9f7', 130, 260);
 const camera = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, .5, 500);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.maxPolarAngle = 1.18; controls.minDistance = 10; controls.maxDistance = 170;
+controls.enableDamping = true; controls.maxPolarAngle = 1.18; controls.minDistance = 10; controls.maxDistance = 200;
 
 scene.add(new THREE.HemisphereLight('#f4f8ff', '#a9b8d8', 1.5));
 const sun = new THREE.DirectionalLight('#fff6ea', 2.4);
 sun.position.set(-30, 60, 40); sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
-Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 50, bottom: -50, near: 1, far: 200 });
+Object.assign(sun.shadow.camera, { left: -130, right: 75, top: 50, bottom: -50, near: 1, far: 200 });
 sun.shadow.bias = -.0004; sun.shadow.normalBias = .03;
 scene.add(sun);
 
@@ -569,48 +572,83 @@ function wall(x1, z1, x2, z2, { h = 3.2, t = .3, doors = [], windows = [], color
 // ================================================================ city backdrop (Kenney city kit)
 const BACKDROP = [];
 (function backdrop() {
-  const behind = [['towerB', -100, -26, 6], ['bldA', -60, -24, 6.5], ['towerD', -44, -30, 6], ['lowW', -26, -28, 6.5], ['bldC', -6, -34, 6.5], ['towerE', 14, -36, 6],
+  const behind = [['bldA', -60, -24, 6.5], ['towerD', -44, -30, 6], ['lowW', -26, -28, 6.5], ['bldC', -6, -34, 6.5], ['towerE', 14, -36, 6],
                   ['lowA', 32, -34, 6.5], ['bldH', 52, -30, 6.5], ['towerB', 66, -20, 5.5], ['lowC', 64, -6, 6.5], ['bldE', 66, 6, 6.5], ['lowA', -30, 2, 6.5]];
   for (const [k, x, z, sc] of behind) BACKDROP.push(model(k, x, z, { s: sc }));
   const front = [['lowA', -100, 34, 6.5], ['bldC', -82, 34, 6.5], ['lowW', -62, 34, 6.5], ['bldE', -44, 34, 6.5], ['lowC', -26, 34, 6.5], ['bldA', -8, 34, 6.5], ['lowA', 10, 34, 6.5], ['bldH', 28, 34, 6.5], ['lowC', 46, 34, 6.5], ['bldE', 62, 34, 6.5]];
   for (const [k, x, z, sc] of front) BACKDROP.push(model(k, x, z, { s: sc, ry: Math.PI }));
 })();
 
-// ================================================================ CLIENT SITE · ABC Infrastructure Ltd.
+// ================================================================ CLIENT SITE · the selected company
 const CLIENT_FIGS = [];
-const CLIENT = { x: -84, z: -2 };
+const CLIENT = { x: -104, z: -18 };
+// car route from the client gate to the main road: south, east along the back street, south again (three turns)
+const ROUTE = [[CLIENT.x + 6, CLIENT.z + 11], [CLIENT.x + 6, 3], [-42, 3], [-42, ROAD_Z - 1.8]];
+let clientName = 'Client';
+const CLIENT_DYN = []; // [object, () => info] rebuilt whenever the selected company changes
+const dyn = (obj, fn) => { CLIENT_DYN.push([obj, fn]); return info(obj, fn()); };
+const bdName = () => currentCase?.deal?.owner || 'ACER BD';
+const initials = (n) => String(n || '').replace(/[^A-Za-z0-9 ]/g, ' ').split(/\s+/)
+  .filter(w => w && !/^(private|pvt|limited|ltd|the|and|of|india)$/i.test(w)).slice(0, 3).map(w => w[0]).join('').toUpperCase() || 'CL';
+function fitTex(text, { w = 2048, h = 256, size = 130, color = '#2e4f9c' } = {}) {
+  return canvasTex(w, h, (g) => {
+    let sz = size; g.font = `900 ${sz}px Inter, Arial, sans-serif`;
+    const k = (w - 100) / g.measureText(text).width; if (k < 1) { sz = Math.floor(sz * k); g.font = `900 ${sz}px Inter, Arial, sans-serif`; }
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + sz * .05);
+  });
+}
+let clientSign = null, clientRoof = null;
 (function clientSite() {
   const { x: X, z: Z } = CLIENT;
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
   box(6, .17, 3.4, C.grass, X - 7.5, 0, Z + 7.5, scene, .05);
   box(6, .17, 3.4, C.grass, X + 7.5, 0, Z + 7.5, scene, .05);
+  // the street out of the client campus (kept off the main road surface so it reads as a junction)
+  for (let i = 0; i < ROUTE.length - 1; i++) {
+    const [ax, az] = ROUTE[i], [bx, bz] = ROUTE[i + 1];
+    const x0 = Math.min(ax, bx) - 2.5, x1 = Math.max(ax, bx) + 2.5;
+    const z0 = Math.max(Math.min(az, bz) - 2.5, Z + 10), z1 = Math.min(Math.max(az, bz) + 2.5, ROAD_Z - 3.7);
+    box(x1 - x0, .15, z1 - z0, C.road, (x0 + x1) / 2, 0, (z0 + z1) / 2, scene, .02);
+  }
   const b = group(X, 0, Z - 3); b.name = 'Client office';
   const tw = model('tower', 0, 0, { parent: b, s: 6.2 });
   const tb = tw ? new THREE.Box3().setFromObject(tw).getSize(new THREE.Vector3()) : new THREE.Vector3(8, 25, 8);
-  if (tw) info(tw, { kind: 'Client HQ', icon: '🏢', title: 'ABC Infrastructure Ltd.', sub: 'Client · Bank Loan ₹ 450 Cr', chip: ['BD meeting done', ''], rows: [['Sector', 'Infrastructure / EPC'], ['Relationship', 'New client'], ['Deal owner', 'Rohan Mehta (BD)'], ['Address', 'BKC, Mumbai']] });
+  if (tw) dyn(tw, () => ({ kind: 'Client HQ', icon: '🏢', title: clientName, sub: currentCase?.instrument || 'Client', chip: [currentCase?.k?.ed || 'Client', ''], rows: [['Status', currentCase?.k?.status || '—'], ['Deal owner', bdName()]] }));
   const D = tb.z;
   // entrance canopy
   box(4.6, .2, 2.0, '#ffffff', 0, 3.0, D / 2 + 1.0, b, .06);
   for (const s of [-1, 1]) box(.14, 3.0, .14, '#d5dde8', s * 2.1, 0, D / 2 + 1.8, b, .03);
   // company sign on a podium in front
   box(7.6, 1.1, .5, '#ffffff', -7.5, 0, D / 2 + 2.6, b, .12);
-  plane(7.2, .9, textTex('ABC INFRASTRUCTURE LTD.', { w: 2048, h: 256, size: 130, color: '#2e4f9c', spacing: 4 }), -7.5, .58, D / 2 + 2.86, b, true);
+  clientSign = plane(7.2, .9, fitTex('CLIENT'), -7.5, .58, D / 2 + 2.86, b, true);
   // rooftop sign
-  const rs = plane(tb.x * 1.05, 1.6, textTex('ABC', { size: 200, color: '#ffffff', spacing: 20 }), 0, tb.y + 1.0, D / 2 - .2, b, true);
+  clientRoof = plane(tb.x * 1.05, 1.6, textTex('CL', { size: 200, color: '#ffffff', spacing: 20 }), 0, tb.y + 1.0, D / 2 - .2, b, true);
   plant(X - 5, Z + 4.4, 1.1); plant(X + 5, Z + 4.4, 1.1);
   // parked cars in the client car park
   for (let i = 0; i < 3; i++) carModel({ x: X + 6 + i * 2.3, z: Z + 1, ry: Math.PI / 2, color: ['#ffffff', '#e8edf5', '#f3f5f8'][i], stripe: ['#2f5f9e', '#9aa6b4', '#3a4256'][i], kind: 'acer' });
   // the meeting
   const client = person({ x: X - .8, z: Z + 5.4, ry: Math.PI * .35, suit: '#5b6680', hair: '#6b4a2b', tie: '#b08a5a', handOut: true });
-  info(client, { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['In meeting', ''], rows: [['Meeting', 'Rating mandate discussion'], ['With', 'Rohan Mehta (ACER BD)'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
+  dyn(client, () => ({ kind: 'Client', icon: '🤝', title: clientName, sub: 'Client management', chip: ['In meeting', ''], rows: [['Meeting', 'Rating mandate discussion'], ['With', `${bdName()} (ACER BD)`], ['Instrument', currentCase?.instrument || '—']] }));
   const bd0 = person({ x: X + .8, z: Z + 5.6, ry: -Math.PI * .4, suit: '#2e3b55', tie: C.teal, carry: C.teal, handOut: true });
-  info(bd0, BD_INFO('Client meeting', 'Meeting the CFO at ABC Infrastructure'));
+  dyn(bd0, () => BD_INFO('Client meeting', `Meeting ${clientName}`));
   const meetBubble = label('Very glad to meet you!', 'bubble', X - .8, 2.9, Z + 5.4);
   CLIENT_FIGS.push(client, bd0, meetBubble);
 })();
+/** Repaint the client campus for the selected company. */
+function setClient(name) {
+  clientName = name || 'Client';
+  const swap = (m, t) => { m.material.map?.dispose(); m.material.map = t; m.material.needsUpdate = true; };
+  if (clientSign) swap(clientSign, fitTex(clientName.toUpperCase()));
+  if (clientRoof) swap(clientRoof, textTex(initials(clientName), { size: 200, color: '#ffffff', spacing: 20 }));
+  for (const [o, fn] of CLIENT_DYN) o.userData.info = fn();
+  SITE_LABEL.client = [initials(clientName), clientName, 'Client HQ'];
+  const m = document.querySelector('#menu [data-site="client"]');
+  if (m) { m.querySelector('.tag').textContent = initials(clientName); m.querySelector('b').textContent = clientName; }
+  STEPS[0].where = `${clientName} HQ`;
+}
 
 function BD_INFO(stage, doing) {
-  return { kind: 'ACER BD', icon: '🧑‍💼', title: 'Rohan Mehta', sub: 'Business Development · ACER', chip: [stage, ''], rows: [['Doing', doing], ['Company', 'ABC Infrastructure Ltd.'], ['Case', 'ACR/2026/0847'], ['Deal value', '₹ 6.5 L fee']] };
+  return { kind: 'ACER BD', icon: '🧑‍💼', title: bdName(), sub: 'Business Development · ACER', chip: [stage, ''], rows: [['Doing', doing], ['Company', clientName], ['Instrument', currentCase?.instrument || '—']] };
 }
 
 // ================================================================ cars
@@ -631,7 +669,7 @@ function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = s
   return g;
 }
 const car = carModel({ x: -14, z: ROAD_Z - 1.8, color: '#ffffff', stripe: C.teal, kind: 'acer' });
-info(car, { kind: 'Vehicle', icon: '🚗', title: 'ACER pool car · MH-02 AC 4521', sub: 'Driver: Suresh · BD on board', chip: ['On the road', ''], rows: [['From', 'ABC Infrastructure (BKC)'], ['To', 'ACER Office'], ['ETA', '10:58 (12 min)'], ['Carrying', 'Signed fee proposal']] });
+dyn(car, () => ({ kind: 'Vehicle', icon: '🚗', title: 'ACER pool car', sub: `${bdName()} on board`, chip: ['On the road', ''], rows: [['From', clientName], ['To', 'ACER Office'], ['Carrying', 'Signed fee proposal']] }));
 const carTag = label('<em>CAR</em> BD → ACER Office', 'tag3', 0, 2.6, 0, car);
 const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e9eef4', stripe: '#2f5f9e', kind: 'acer' }), carModel({ x: -40, z: ROAD_Z + 1.8, ry: Math.PI, color: '#dfe6ee', stripe: '#3a4256', kind: 'acer' })];
 
@@ -803,7 +841,7 @@ function cupboard(x, z, ry = 0, w = 1.8, h = 2.1, parent = office, seed = 0) {
 cupboard(-1.2, -19.6, 0, 2.4, 2.1, office, 1); cupboard(3.0, -19.6, 0, 2.4, 2.1, office, 2);
 cupboard(-2.6, -15.6, Math.PI / 2, 2.0, 2.0, office, 5);
 desk(-.6, -17.4, 0, { parent: office });
-seatedAt(-.6, -16.5, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'ABC Infra mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
+seatedAt(-.6, -16.5, Math.PI, 2, false, office, { kind: 'ACER staff', icon: '🧑‍⚖️', title: 'Anil Kapoor', sub: 'Chief Compliance Officer', chip: ['CCO approved ✓', ''], rows: [['Reviewing', 'Current mandate'], ['Checks', 'KYC · COI · Accounts'], ['Queue', '5 mandates']] });
 desk(2.6, -17.4, 0, { parent: office });
 seatedAt(2.6, -16.5, Math.PI, 4, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Priya Nair', sub: 'Accounts review', chip: ['Accounts review', 'warn'], rows: [['Invoice', 'Paid · ₹ 6.5 L'], ['Source', 'Zoho Books']] });
 plant(4.4, -13.8, .8, office);
@@ -811,14 +849,14 @@ plant(4.4, -13.8, .8, office);
 cupboard(12.4, -19.6, 0, 2.2, 2.1, office, 12); cupboard(19.6, -19.6, 0, 2.2, 2.1, office, 3);
 wallScreen(16, 2.6, -19.78, 0, 3.0, 1.5, (g, w, h) => {
   g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#1f3fae'; g.font = '800 40px Inter'; g.fillText('ABC Infra · Financials', 30, 62);
+  g.fillStyle = '#1f3fae'; g.font = '800 40px Inter'; g.fillText('Client financials', 30, 62);
   [90, 130, 110, 170, 210].forEach((v, i) => { g.fillStyle = i < 4 ? '#a9bdf6' : '#2f5ce6'; g.fillRect(60 + i * 120, h - 40 - v, 76, v); });
 }, office);
 box(7.2, .03, 3.8, '#d3dbe6', 16, 0, -16.4, office, .015);
 table(16, -16.4, 5.6, 1.8, office);
 const ANALYSTS = ['Rahul Mehta', 'Sneha Pillai', 'Kavita Joshi', 'Arjun Desai', 'Meera Shah', 'Dev Patel'];
 [14.0, 15.35, 16.7, 18.05].forEach((x, i) => {
-  seatedAt(x, -17.7, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst · ABC Infra' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'ACR/2026/0847 ABC Infra' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
+  seatedAt(x, -17.7, 0, i, i === 2, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[i], sub: i === 0 ? 'Lead Analyst' : 'Analyst', chip: [i === 0 ? 'Rating Note Create' : 'Analysis', i === 0 ? '' : 'grey'], rows: [['Case', i === 0 ? 'Current case' : 'ACR/2026/08' + (50 + i)], ['Stage', 'Rating WIP'], ['Cases', String(3 + i)]] });
   box(.42, .02, .3, '#c9d1dc', x, .78, -16.95, office, .01);
 });
 [14.7, 17.4].forEach((x, i) => seatedAt(x, -15.1, Math.PI, i + 2, false, office, { kind: 'Rating Team', icon: '📊', title: ANALYSTS[4 + i], sub: 'Analyst', chip: ['Data collection', 'grey'], rows: [['Cases', '4']] }));
@@ -854,7 +892,7 @@ box(2.6, 1.05, .7, '#ffffff', -.6, 0, 1.6, office, .08);
 box(2.62, .22, .72, C.teal, -.6, .55, 1.6, office, .04);
 seatedAt(-.6, .6, 0, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Proposal desk', sub: 'Receives proposals from BD', chip: ['On duty', ''], rows: [['Role', 'Proposal intake']] });
 desk(-1.4, -3.3, 0, { parent: office });
-seatedAt(-1.4, -2.4, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'ABC Infra fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
+seatedAt(-1.4, -2.4, Math.PI, 1, true, office, { kind: 'ACER staff', icon: '👩‍💼', title: 'Neha Iyer', sub: 'Proposal desk · Deal approver', chip: ['Price approved ✓', ''], rows: [['Working on', 'Fee proposal'], ['Fee', '₹ 6.5 L'], ['Queue', '7 proposals']] });
 desk(1.8, -3.3, 0, { parent: office });
 seatedAt(1.8, -2.4, Math.PI, 0, false, office, { kind: 'ACER staff', icon: '🧑‍💼', title: 'Vikram Rao', sub: 'Proposal desk · Pricing', chip: ['Negotiation', 'warn'], rows: [['Working on', 'Kavya Textiles NCD'], ['Queue', '4 proposals']] });
 cupboard(4.6, -1.0, -Math.PI / 2, 2.2, 2.0, office, 9);
@@ -881,8 +919,8 @@ model('sofa', 34.4, 2.2, { parent: office, ry: Math.PI, s: FURN * 1.2 });
 model('coffeeTable', 34.4, .7, { parent: office, s: FURN * 1.1 });
 cupboard(27.5, -1.2, Math.PI / 2, 2.0, 1.8, office, 10);
 plant(35.4, -3.2, .9, office);
-const pubBD = info(person({ x: 32.4, z: .2, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), BD_INFO('Published', 'Handing over the rating to the client'));
-const pubClient = info(person({ x: 30.9, z: .5, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), { kind: 'Client', icon: '🤝', title: 'Mr. Arjun Shah', sub: 'CFO · ABC Infrastructure Ltd.', chip: ['Rating received', ''], rows: [['Rating', 'ACER AA+ | Stable'], ['Instrument', 'Bank Loan · ₹ 450 Cr']] });
+const pubBD = dyn(person({ x: 32.4, z: .2, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), () => BD_INFO('Published', 'Handing over the rating to the client'));
+const pubClient = dyn(person({ x: 30.9, z: .5, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), () => ({ kind: 'Client', icon: '🤝', title: clientName, sub: 'Client management', chip: ['Rating received', ''], rows: [['Rating', currentCase?.k?.ratingVisible ? ratingText(currentCase) : '—'], ['Instrument', currentCase?.instrument || '—']] }));
 const pubBubble = label('Thank you, ACER!', 'bubble', 30.9, 3.6, .5, office);
 function setPublished(on) { pubBD.visible = pubClient.visible = on; pubBubble.userData.want = on; pubBubble.visible = on; drawPub(on); }
 
@@ -921,7 +959,7 @@ function robot(x, z, ry = 0, parent = scene) {
 }
 const BOT_PARK = { compliance: [3.6, -14.2], rating: [19.6, -14.2], committee: [28.7, -14.2] };
 const bot = robot(...BOT_PARK.committee, Math.PI, office);
-info(bot, { kind: 'Robot courier', icon: '🤖', title: 'Case courier R-01', sub: 'Carries case files between rooms', chip: ['Delivering', ''], rows: [['Carrying', 'ABC Infra case file'], ['From', 'Compliance'], ['To', 'Rating Team'], ['Battery', '86%']] });
+info(bot, { kind: 'Robot courier', icon: '🤖', title: 'Case courier R-01', sub: 'Carries case files between rooms', chip: ['Delivering', ''], rows: [['Carrying', 'Case file'], ['From', 'Compliance'], ['To', 'Rating Team'], ['Battery', '86%']] });
 const botTag = label('<em>R-01</em> parked', 'tag3', 0, 2.8, 0, bot);
 const setBotTag = t => botTag.element.innerHTML = '<em>R-01</em> ' + t;
 
@@ -957,14 +995,16 @@ function hideDest() { destPad.visible = false; }
 
 // ================================================================ detail card
 const detail = document.getElementById('detail');
+let caseCardOpen = false; // the case card opens only from "Details"; clicked objects open their own card
 function showInfo(d) {
   detail.style.display = d ? '' : 'none'; if (!d) return;
   detail.innerHTML = `<div class="hd"><div class="ico">${d.icon || '◆'}</div><div><div class="eb">${d.kind}</div><h3>${d.title}</h3><div class="sub">${d.sub || ''}</div></div><button class="x" id="x">✕</button></div>
     ${d.chip ? `<div class="st"><span class="chip ${d.chip[1]}">${d.chip[0]}</span>${d.progress != null ? `<span>${d.progress}%</span>` : ''}</div>` : ''}
     ${d.progress != null ? `<div class="pbar"><i style="width:${d.progress}%"></i></div>` : ''}
     <div class="rows">${(d.rows || []).map(([a, b]) => `<div class="row"><span>${a}</span><b>${b}</b></div>`).join('')}</div>`;
-  document.getElementById('x').onclick = () => { showInfo(CASE_INFO()); showBrackets(null); };
+  document.getElementById('x').onclick = () => { caseCardOpen = false; showInfo(null); showBrackets(null); };
 }
+showInfo(null);
 const CASE_INFO = () => {
   const c = currentCase; if (!c) return null;
   const k = c.k, pay = k.pay, rating = k.ratingVisible ? ratingText(c) : 'Hidden until RC vote';
@@ -976,8 +1016,8 @@ const CASE_INFO = () => {
 
 // ================================================================ journey
 const STEPS = [
-  { t: 'Client Meeting', s: 'BD visits', chip: 'Deal initiated', where: 'ABC Infrastructure HQ', who: 'BD · Rohan Mehta', site: 'client' },
-  { t: 'Travel to ACER', s: 'by car', chip: 'Proposal sent', where: 'On the road', who: 'BD · Rohan Mehta', site: 'road' },
+  { t: 'Client Meeting', s: 'BD visits', chip: 'Deal initiated', where: 'Client HQ', who: 'ACER BD', site: 'client' },
+  { t: 'Travel to ACER', s: 'by car', chip: 'Proposal sent', where: 'On the road', who: 'ACER BD', site: 'road' },
   { t: 'Proposal', s: 'approved', chip: 'Price approval ✓', where: 'Proposal Desk', who: 'Deal approver', site: 'proposal' },
   { t: 'Compliance', s: 'approved', chip: 'CCO approved ✓', where: 'Compliance · CCO', who: 'Anil Kapoor (CCO)', site: 'compliance' },
   { t: 'Hand-off', s: 'robot to Rating', chip: 'LA selected', where: 'Robot R-01 en route', who: 'Robot R-01', site: 'rating' },
@@ -998,7 +1038,7 @@ function setStep(n) {
   document.getElementById('prog').style.width = (87.5 * stepNow / 7) + '%';
   document.getElementById('j-now').textContent = STEPS[stepNow].where;
   renderStages();
-  showInfo(CASE_INFO());
+  if (caseCardOpen) showInfo(CASE_INFO());
 }
 const STORY_ED = ['Pitching', 'Pricing', 'Pricing', 'Mandate', 'Rating WIP', 'Rating WIP', 'Rating WIP', 'Published'];
 const STORY_CRO = [null, null, null, null, 'Team Allocation', 'Analysis', 'Committee', 'Published'];
@@ -1008,7 +1048,7 @@ function renderStages() {
   if (!replay && viewMode === 'CRO' && currentCase?.k.survStage && currentCase.k.ed === 'Published') cur = 'Surveillance';
   const idx = list.indexOf(cur);
   document.getElementById('bizStages').innerHTML = list.map((n, i) => `<div class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${i < idx ? '✓ ' : ''}${n}</div>`).join('');
-  document.getElementById('j-title').textContent = `▣ ${currentCase?.company || 'Company'}`;
+  document.getElementById('j-title').textContent = currentCase?.company || 'Company';
 }
 
 // ================================================================ list panel
@@ -1110,7 +1150,7 @@ async function refreshLive() {
   ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
   const cur = CASES.find(c => c.id === currentCase?.id);
   if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
-  renderKPIs(); renderList(); showInfo(CASE_INFO()); showSource();
+  renderKPIs(); renderList(); if (caseCardOpen) showInfo(CASE_INFO()); showSource();
   if (document.activeElement === q) renderResults();
 }
 setInterval(refreshLive, 60000);
@@ -1118,19 +1158,19 @@ q.addEventListener('focus', refreshLive);
 
 // ================================================================ camera views
 const VIEWS = {
-  all: [new THREE.Vector3(-56, 92, 124), new THREE.Vector3(-22, 4, -4)],
+  all: [new THREE.Vector3(-72, 104, 136), new THREE.Vector3(-40, 4, -6)],
   building: [new THREE.Vector3(-18, 42, 80), new THREE.Vector3(14, 3, -4)],
   acer: [new THREE.Vector3(2, 42, 38), new THREE.Vector3(17, 0, -9)],
-  client: [new THREE.Vector3(-112, 32, 44), new THREE.Vector3(-82, 4, -1)],
-  road: [new THREE.Vector3(-62, 24, 48), new THREE.Vector3(-38, 0, 14)],
+  client: [new THREE.Vector3(-134, 34, 28), new THREE.Vector3(-102, 4, -13)],
+  road: [new THREE.Vector3(-96, 46, 54), new THREE.Vector3(-66, 0, 2)],
   proposal: [new THREE.Vector3(-9, 16, 18), new THREE.Vector3(1, 0, -.5)],
   compliance: [new THREE.Vector3(-7, 17, -3), new THREE.Vector3(1, 0, -16.5)],
   rating: [new THREE.Vector3(6, 17, -3), new THREE.Vector3(16, 0, -16.5)],
   committee: [new THREE.Vector3(21, 17, -3), new THREE.Vector3(31, 0, -16.5)],
   published: [new THREE.Vector3(22, 15, 16), new THREE.Vector3(31.5, 0, -.5)],
-  hero: [new THREE.Vector3(-24, 160, 175), new THREE.Vector3(-24, 0, -4)],
+  hero: [new THREE.Vector3(-42, 170, 190), new THREE.Vector3(-42, 0, -6)],
 };
-const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], building: ['ACER', 'ACER Office · Mumbai', 'Credit rating HQ'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
+const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], building: ['ACER', 'ACER Office · Mumbai', 'Credit rating HQ'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['CL', 'Client site', 'Client HQ'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
 let fly = null;
 const EXTERIOR = new Set(['all', 'client', 'road', 'building']);
 function flyTo(key, dur = 1.6) {
@@ -1162,7 +1202,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   const hit = ray.intersectObjects(clickables, true)[0];
   if (!hit) return;
   let o = hit.object; while (o && !o.userData.info) o = o.parent;
-  if (o) { showInfo(o.userData.info); showBrackets(o); if (o.userData.info.kind === 'ACER HQ' && shellAlpha > .5) flyTo('acer'); }
+  if (o) { caseCardOpen = false; showInfo(o.userData.info); showBrackets(o); if (o.userData.info.kind === 'ACER HQ' && shellAlpha > .5) flyTo('acer'); }
 });
 
 // ================================================================ replay: the real journey of the case
@@ -1170,10 +1210,10 @@ renderer.domElement.addEventListener('pointerup', e => {
 // to the Rating Team → robot carries it to the Committee → vote → rating released → BD hands it to the client.
 const walker = person({ tie: C.teal, carry: C.teal, variant: 0 });
 walker.visible = false;
-info(walker, BD_INFO('Replay', 'Walking the ABC Infrastructure journey'));
+dyn(walker, () => BD_INFO('Journey', `Carrying the ${clientName} case`));
 const hereAnchor = new THREE.Object3D(); scene.add(hereAnchor);
 const youAreHere = label('<div class="pin"></div>', '', 0, 3.4, 0, hereAnchor); youAreHere.visible = false;
-const HERE = [[CLIENT.x, 0, CLIENT.z + 5.5], [-18, 0, ROAD_Z - 1.8], [1.8, FY, -2.4], [-.6, FY, -16.5], [BOT_PARK.rating[0], FY, BOT_PARK.rating[1]], [16, FY, -16.4], [31, FY, -16.4], [31.6, FY, .3]];
+const HERE = [[CLIENT.x, 0, CLIENT.z + 5.5], [-70, 0, 3], [1.8, FY, -2.4], [-.6, FY, -16.5], [BOT_PARK.rating[0], FY, BOT_PARK.rating[1]], [16, FY, -16.4], [31, FY, -16.4], [31.6, FY, .3]];
 /** Put the office into the state of a given journey step (no animation). */
 function setCaseState(t) {
   walker.visible = false;
@@ -1189,9 +1229,10 @@ function setCaseState(t) {
 }
 function selectCase(c) {
   if (!c) return; if (!c.k) { showInfo({ kind: 'Hidden case', title: c.company, sub: 'Deal lost / mandate dropped', chip: [c.al[0]?.text || 'Not on the dashboard', 'red'], rows: [] }); return; }
-  replay = null; currentCase = c; q.value = c.company;
+  currentCase = c; q.value = c.company; setClient(c.company);
   try { history.replaceState(null, '', '?q=' + encodeURIComponent(c.company)); } catch {}
-  setCaseState(c.k.step); setStep(c.k.step); renderList(); flyTo(STEPS[c.k.step].site, 1.6);
+  renderList(); introDone = true;
+  replay = { q: SCRIPT(), cur: null, target: c.k.step }; // play from the client meeting up to where the case is now
 } youAreHere.userData.want = false;
 let replay = null;
 const CAR_Z = ROAD_Z - 1.8;
@@ -1214,11 +1255,11 @@ function SCRIPT() {
     } },
     { kind: 'wait', d: 2.4 },
     { kind: 'call', fn: () => { CLIENT_FIGS[2].visible = false; } },
-    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(CLIENT.x + .8, CLIENT.z + 5.6), at(CLIENT.x + 1, 9.4), at(CLIENT.x + 3.5, 12.6)] },
-    { kind: 'call', fn: () => { walker.visible = false; car.position.set(CLIENT.x + 3.5, 0, CAR_Z); step(1, 'road')(); } },
-    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(CLIENT.x + 3.5, CAR_Z), at(-20, CAR_Z)] },
+    { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(CLIENT.x + .8, CLIENT.z + 5.6), at(ROUTE[0][0] - 1.6, CLIENT.z + 6.4), at(ROUTE[0][0] - 1.6, ROUTE[0][1])] },
+    { kind: 'call', fn: () => { walker.visible = false; car.position.set(ROUTE[0][0], 0, ROUTE[0][1]); car.rotation.y = -Math.PI / 2; step(1, 'road')(); } },
+    { kind: 'move', obj: car, speed: CAR_SPEED, car: true, path: [...ROUTE.map(([x, z]) => at(x, z)), at(-20, CAR_Z)] },
     { kind: 'call', fn: () => flyTo('building', 1.6) },
-    { kind: 'move', obj: car, speed: CAR_SPEED, turn: false, path: [at(-20, CAR_Z), at(9.6, CAR_Z)] },
+    { kind: 'move', obj: car, speed: CAR_SPEED, car: true, path: [at(-20, CAR_Z), at(9.6, CAR_Z)] },
     { kind: 'call', fn: () => { walker.visible = true; walker.position.set(9.6, 0, 12.6); } },
     { kind: 'move', obj: walker, anim: 'carry', speed: W_SPEED, path: [at(9.6, 12.6), at(9.6, 9.6), at(9.6, 7, FY), at(3.6, 4.6, FY), at(.6, -1.0, FY)], onStart: step(2, 'proposal') },
     { kind: 'call', fn: () => { walker.rotation.y = Math.PI; walker.userData.play('shake'); } },
@@ -1257,7 +1298,10 @@ function stepReplay(dt) {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || .01;
   s.t = Math.min(1, s.t + dt * s.speed / len);
   s.obj.position.set(a[0] + (b[0] - a[0]) * s.t, a[2] + (b[2] - a[2]) * s.t, a[1] + (b[1] - a[1]) * s.t);
-  if (s.turn !== false) s.obj.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
+  if (s.car) { // cars point along +x: ease the heading round each corner
+    const want = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
+    s.obj.rotation.y += Math.atan2(Math.sin(want - s.obj.rotation.y), Math.cos(want - s.obj.rotation.y)) * Math.min(1, dt * 9);
+  } else if (s.turn !== false) s.obj.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
   if (s.anim) s.obj.userData.play?.(s.anim);
   if (s.t >= 1) { s.i++; s.t = 0; }
 }
@@ -1283,7 +1327,7 @@ function ambient(dt) {
   T += dt;
   LANE_WALKERS.forEach(w => walkLoop(w, dt));
   if (destPad.visible) { const k = 1 + Math.sin(T * 4) * .12; destPad.scale.set(k, k, 1); }
-  if (!replay && !window.__heroCar) { car.position.x = -70 + ((T * 6) % 100); car.position.z = CAR_Z; }
+  if (!replay && !window.__heroCar) { car.position.x = -70 + ((T * 6) % 100); car.position.z = CAR_Z; car.rotation.y = 0; }
   traffic[0].position.x = 40 - ((T * 6) % 110); traffic[1].position.x = -20 - ((T * 4.5 + 40) % 110) + 60;
   const d = new Date(); document.getElementById('clock').textContent = 'Live ' + d.toTimeString().slice(0, 5);
 }
@@ -1292,7 +1336,8 @@ function ambient(dt) {
 renderKPIs(); renderList('cases');
 const QS = new URLSearchParams(location.search).get('q');
 if (QS) { const t = QS.toLowerCase(); const hit = CASES.find(c => c.company.toLowerCase().includes(t) || c.id.toLowerCase() === t); if (hit) currentCase = hit; }
-if (currentCase) { setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
+if (currentCase) { setClient(currentCase.company); setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
+document.getElementById('caseBtn').onclick = () => { caseCardOpen = !caseCardOpen; showBrackets(null); showInfo(caseCardOpen ? CASE_INFO() : null); };
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); });
 addEventListener('keydown', e => { if (e.key === '/') { e.preventDefault(); document.getElementById('q').focus(); } });
 function frame(dt) {
@@ -1317,7 +1362,7 @@ if (new URLSearchParams(location.search).has('hero')) {
   document.querySelectorAll('.top,.kpis,.detail,.track,.list,.ctrl,.hint').forEach(e => e.style.display = 'none');
   camera.fov = 16; camera.far = 1400; controls.maxDistance = 1200; camera.updateProjectionMatrix();
   scene.fog = null; BACKDROP.forEach(b => b && (b.visible = false)); traffic.forEach(t => t.visible = false); carTag.visible = false;
-  sun.shadow.camera.left = -110; sun.shadow.camera.right = 70; sun.shadow.camera.updateProjectionMatrix(); sun.target.position.set(-20, 0, 0); sun.position.set(-50, 70, 45); scene.add(sun.target);
+  sun.shadow.camera.left = -140; sun.shadow.camera.right = 70; sun.shadow.camera.updateProjectionMatrix(); sun.target.position.set(-20, 0, 0); sun.position.set(-50, 70, 45); scene.add(sun.target);
   introDone = true;
   CLIENT_FIGS.forEach(f => f.visible = true); CLIENT_FIGS[2].visible = false;
   car.position.set(-38, 0, CAR_Z);
