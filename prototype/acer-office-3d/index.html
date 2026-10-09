@@ -753,7 +753,7 @@ const COMP = cube('compliance', 'Compliance', -3, -20, 5, -13, { door: [5.4, 7.2
 const RATE = cube('rating', 'Rating Team', 11, -20, 21, -13, { door: [4, 6], data: { sub: 'Boardroom · lead analysts', chip: ['Rating note ready ✓', ''], rows: [['Cases here', '21'], ['Statuses', 'LA Selected → Rating Note → LA Approval'], ['Owner', 'Lead Analyst']] } });
 const COMM = cube('committee', 'Rating Committee', 27, -20, 35, -13, { glass: true, door: [.8, 2.6], tint: '#f3f7fb', data: { sub: 'Committee meeting & voting', chip: ['Voting done ✓', ''], rows: [['Cases here', '4'], ['Statuses', 'RC Selection → Meeting → Voting Done'], ['Next meeting', 'Thu 08 Oct, 11:00']] } });
 const PROP = cube('proposal', 'Proposal', -3, -4, 5, 3, { open: 'none', data: { sub: 'Front desk + deal approver', chip: ['Proposal approved ✓', ''], rows: [['Cases here', '7'], ['Statuses', 'Proposal Sent · Negotiation · Price Approval'], ['Owner', 'Deal owner']] } });
-const PUB = cube('published', 'Published Lobby', 27, -4, 36, 3, { open: 'none', data: { sub: 'Rating released to client', chip: ['AA+ | Stable', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
+const PUB = cube('published', 'Published Lobby', 27, -4, 36, 3, { open: 'none', data: { sub: 'Rating released to client', chip: ['Rating released', ''], rows: [['Published (30d)', '64'], ['Statuses', 'CRO Approved · Rating Record Created'], ['Owner', 'CRO']] } });
 
 // outer glass walls of the building (low, so the interior reads from above when opened)
 const OUT = '#2f5ce6';
@@ -899,6 +899,7 @@ function drawRC(state) {
   rcScreen.draw((g, w, h) => {
     g.fillStyle = '#f4fafc'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText('RATING COMMITTEE', 30, 52);
+    if (state === 'done' && !currentCase?.k?.ratingVisible) state = 'voting'; // no rating on screen before the RC vote
     if (state === 'done') {
       g.fillStyle = '#1f3fae'; g.font = '900 92px Inter'; g.fillText('VOTE: 5/5', 30, 168);
       g.fillStyle = '#2f5ce6'; g.font = '800 38px Inter'; g.fillText(currentCase ? ratingText(currentCase) : '', 30, 226);
@@ -914,9 +915,9 @@ box(6.2, .03, 3.8, '#d3dbe6', 31, 0, -16.4, office, .015);
 table(31, -16.4, 4.4, 1.8, office);
 const RC = ['Dr. R. Menon (Chair)', 'Lata Bhat', 'K. Srinivasan', 'Farah Khan', 'Ajay Gupta', 'N. Kulkarni'];
 const RC_PEOPLE = [];
-[29.7, 31.0, 32.3].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -17.7, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] })));
-[30.3, 31.7].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -15.1, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] })));
-RC_PEOPLE.push(seatedAt(33.8, -16.4, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Voted AA+', ''], rows: [['Meeting', 'RC-2026-112']] }));
+[29.7, 31.0, 32.3].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -17.7, 0, i, i === 1, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[i], sub: 'Committee member', chip: ['Committee member', 'grey'], rows: [['Meeting', 'RC-2026-112'], ['Case', 'ABC Infrastructure Ltd.']] })));
+[30.3, 31.7].forEach((x, i) => RC_PEOPLE.push(seatedAt(x, -15.1, Math.PI, i + 3, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[3 + i], sub: 'Committee member', chip: ['Committee member', 'grey'], rows: [['Meeting', 'RC-2026-112']] })));
+RC_PEOPLE.push(seatedAt(33.8, -16.4, -Math.PI / 2, 2, false, office, { kind: 'Rating Committee', icon: '⚖️', title: RC[5], sub: 'Committee member', chip: ['Committee member', 'grey'], rows: [['Meeting', 'RC-2026-112']] }));
 RC_PEOPLE.forEach(p => p.userData.play('sit'));
 // ---------------- Proposal cube
 box(2.6, 1.05, .7, '#ffffff', -.6, 0, 1.6, office, .08);
@@ -942,7 +943,7 @@ function drawPub(done) {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = done ? '#2f5ce6' : '#c5ced8'; g.fillRect(0, 0, w, 18);
     g.fillStyle = '#62758a'; g.font = '800 30px Inter'; g.fillText(done ? 'RATING PUBLISHED' : 'RATING · NOT YET RELEASED', 40, 74);
     g.fillStyle = '#1d2733'; g.font = '800 46px Inter'; g.fillText(currentCase?.company || '', 40, 138);
-    if (done) { const r = currentCase?.rating || {}; g.fillStyle = '#1f3fae'; g.font = '900 96px Inter'; g.fillText(r.longTerm || r.ipo || '—', 40, 262); g.fillStyle = '#2f5ce6'; g.font = '800 42px Inter'; g.fillText(r.outlook || '', 560, 258); }
+    if (done && currentCase?.k?.ratingVisible) { const r = currentCase?.rating || {}; g.fillStyle = '#1f3fae'; g.font = '900 96px Inter'; g.fillText(r.longTerm || r.ipo || '—', 40, 262); g.fillStyle = '#2f5ce6'; g.font = '800 42px Inter'; g.fillText(r.outlook || '', 560, 258); }
     else { g.fillStyle = '#9aa6b4'; g.font = '700 40px Inter'; g.fillText('Awaiting Rating Committee decision', 40, 244); }
   });
 }
@@ -1053,7 +1054,7 @@ const STEPS = [
   { t: 'Compliance', s: 'approved', chip: 'CCO approved ✓', where: 'Compliance · CCO', who: 'Anil Kapoor (CCO)', site: 'compliance' },
   { t: 'Hand-off', s: 'robot to Rating', chip: 'LA selected', where: 'Robot R-01 en route', who: 'Robot R-01', site: 'rating' },
   { t: 'Rating Team', s: 'rating note', chip: 'Rating Note Create', where: 'Rating Team · Boardroom', who: 'Lead Analyst · Rahul Mehta', site: 'rating' },
-  { t: 'Committee', s: 'robot → vote', chip: 'Voting done ✓', where: 'Rating Committee', who: 'Committee (5 members)', site: 'committee' },
+  { t: 'Committee', s: 'robot → vote', chip: 'Committee vote', where: 'Rating Committee', who: 'Committee (5 members)', site: 'committee' },
   { t: 'Published', s: 'rating released', chip: 'Published · AA+ | Stable', where: 'Published', who: 'BD hands over to client', site: 'published' },
 ];
 let stepNow = 7;
@@ -1094,7 +1095,7 @@ function renderList(tab = listTab) {
   document.getElementById('tab-att').textContent = `Attention ${att.length}`;
   let rows = [];
   if (tab === 'cases') rows = CASES.map(c => { const st = viewMode === 'ED' ? c.k.ed : (c.k.cro || '—'); const p = Math.round(100 * (c.k.step + 1) / 8);
-    return `<div class="li" data-id="${c.id}" title="${c.company} · ${c.k.status}"><div><b>${c.company}</b><small>${[c.k.status, c.instrument || c.caseType].filter(Boolean).join(' · ')}</small></div><div class="mini"><i style="width:${p}%"></i></div><span class="chip ${c.al.length ? 'red' : st === 'Published' ? '' : p < 50 ? 'grey' : ''}">${st}</span></div>`; });
+    return `<div class="li" data-id="${c.id}" title="${c.company} · ${c.k.status}"><div><b>${c.company}</b><small>${[c.k.status, c.instrument || c.caseType].filter(Boolean).join(' · ')}</small></div><div class="mini"><i style="width:${p}%"></i></div><span class="chip ${c.al.length ? 'red' : c.k.closed ? 'grey' : st === 'Published' ? '' : p < 50 ? 'grey' : ''}">${st}</span></div>`; });
   if (tab === 'attention') rows = att.length ? att.map(({ c, a }) => `<div class="li" data-id="${c.id}"><div><b>${c.company}</b><small>Open: ${a.open}</small></div><div></div><span class="chip red" title="${a.text}">${a.text}</span></div>`) : ['<div class="li"><div><b>No alerts</b><small>All rules pass</small></div></div>'];
   if (tab === 'rooms') rows = ['proposal', 'compliance', 'rating', 'committee', 'published'].map(r => { const n = CASES.filter(c => ROOM_OF_STEP[c.k.step] === r).length;
     return `<div class="li" data-site="${r}"><div><b>${ROOMS[r]?.name || r}</b><small>${n} case${n === 1 ? '' : 's'} here</small></div><div class="mini"><i style="width:${Math.min(100, n * 25)}%"></i></div><span class="chip">${n}</span></div>`; });
@@ -1167,13 +1168,17 @@ function showSource() {
     const btn = document.createElement('button'); btn.id = 'zohoSignIn'; btn.textContent = 'Sign in with Zoho';
     btn.style.cssText = 'display:block;margin:10px auto 0;padding:8px 16px;border:0;border-radius:9px;background:#2f5ce6;color:#fff;font:700 13px Inter,system-ui,sans-serif;cursor:pointer';
     btn.onclick = zohoSignIn; b.appendChild(btn);
+  } else if (liveError) {
+    const btn = document.createElement('button'); btn.textContent = 'Try again';
+    btn.style.cssText = 'display:block;margin:10px auto 0;padding:7px 16px;border:0;border-radius:9px;background:#2f5ce6;color:#fff;font:700 12px Inter,system-ui,sans-serif;cursor:pointer';
+    btn.onclick = () => { btn.disabled = true; btn.textContent = 'Reading Zoho…'; liveError = null; lastLive = 0; refreshLive().finally(showSource); }; b.appendChild(btn);
   }
 }
 showSource();
 // live mode: re-read Zoho every minute and whenever search opens (at most every 15 s); nothing is stored
 let lastLive = Date.now();
 async function refreshLive() {
-  if (!DATA || Date.now() - lastLive < 15000) return;
+  if (Date.now() - lastLive < 15000) return;
   lastLive = Date.now();
   const d = await readLive(); if (!d) return; // keep last data
   DATA = d;
@@ -1181,6 +1186,7 @@ async function refreshLive() {
   ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
   const cur = CASES.find(c => c.id === currentCase?.id);
   if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
+  else if (!currentCase && CASES.length) { currentCase = CASES[0]; setClient(currentCase.company); setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
   renderKPIs(); renderList(); if (caseCardOpen) showInfo(CASE_INFO()); showSource();
   if (document.activeElement === q) renderResults();
 }

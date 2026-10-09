@@ -35,8 +35,9 @@ export function payment(inv) {
 /** Where a case is, in both views. Returns null for hidden cases (deal lost, mandate dropped). */
 export function classify(c) {
   const deal = c.deal || {}, mandate = c.mandate, entity = c.entity, rc = c.rc, surv = c.surveillance;
-  if (deal.stage === 'Lost') return null;
-  if (mandate && mandate.stage === 'Dropped' && !entity) return null;
+  // lost deals and dropped mandates stay on the dashboard as closed cases
+  if (deal.stage === 'Lost' || (mandate && mandate.stage === 'Dropped' && !entity))
+    return { ed: 'Closed', cro: null, status: deal.stage === 'Lost' ? 'Deal lost' : 'Mandate dropped', withWhom: '—', step: 0, ratingVisible: false, survStage: null, pay: payment(c.invoice), closed: true };
   let ed = null, cro = null, status = '', withWhom = '', ratingVisible = false, step = 0;
 
   if (!mandate && !entity) {
