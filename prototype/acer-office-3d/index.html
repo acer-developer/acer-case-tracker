@@ -233,7 +233,7 @@ let DATA = await readLive();
 boot.remove();
 const ALL_CASES = (DATA?.cases || []).map(c => ({ ...c, k: classify(c), al: alerts(c) }));
 const CASES = ALL_CASES.filter(c => c.k);
-let currentCase = CASES.find(c => /ABC Infrastructure/i.test(c.company)) || CASES[0];
+let currentCase = null; // nothing is selected until someone searches
 let viewMode = 'ED';
 
 // ================================================================ 3D assets (Kenney, CC0 — see assets/LICENSE-kenney.txt)
@@ -1131,7 +1131,7 @@ function matchScore(name, typed) {
 }
 const searchCases = (t) => CASES.map(c => [matchScore(c.company, t), c]).filter(([s]) => s).sort((a, b) => b[0] - a[0]).map(([, c]) => c);
 function renderResults() {
-  const hits = searchCases(q.value.trim()).slice(0, 12);
+  const hits = searchCases(q.value.trim()); // every deal; the dropdown scrolls
   results.innerHTML = hits.map(c => `<div data-id="${c.id}"><span>${c.company}</span><small>${c.k.status}</small></div>`).join('') || `<div><small>${DATA ? 'No match in Zoho CRM' : 'No live data'}</small></div>`;
   results.classList.add('open');
   results.querySelectorAll('[data-id]').forEach(el => el.onmousedown = () => { selectCase(CASES.find(c => c.id === el.dataset.id)); results.classList.remove('open'); });
@@ -1140,6 +1140,7 @@ q.addEventListener('focus', renderResults); q.addEventListener('input', renderRe
 q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
 q.addEventListener('keydown', async e => {
   if (e.key !== 'Enter') return;
+  if (!q.value.trim()) return;
   lastLive = 0; await refreshLive(); // Enter always re-reads Zoho so the status shown is current
   const c = searchCases(q.value.trim())[0];
   if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } else renderResults();
@@ -1186,7 +1187,6 @@ async function refreshLive() {
   ALL_CASES.splice(0, ALL_CASES.length, ...all); CASES.splice(0, CASES.length, ...all.filter(c => c.k));
   const cur = CASES.find(c => c.id === currentCase?.id);
   if (cur) { currentCase = cur; if (!replay) { setCaseState(cur.k.step); setStep(cur.k.step); } }
-  else if (!currentCase && CASES.length) { currentCase = CASES[0]; setClient(currentCase.company); setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
   renderKPIs(); renderList(); if (caseCardOpen) showInfo(CASE_INFO()); showSource();
   if (document.activeElement === q) renderResults();
 }
@@ -1267,7 +1267,6 @@ function setCaseState(t) {
 function selectCase(c) {
   if (!c) return; if (!c.k) { showInfo({ kind: 'Hidden case', title: c.company, sub: 'Deal lost / mandate dropped', chip: [c.al[0]?.text || 'Not on the dashboard', 'red'], rows: [] }); return; }
   currentCase = c; q.value = c.company; setClient(c.company);
-  try { history.replaceState(null, '', '?q=' + encodeURIComponent(c.company)); } catch {}
   renderList(); introDone = true;
   replay = { q: SCRIPT(), cur: null, target: c.k.step }; // play from the client meeting up to where the case is now
 } youAreHere.userData.want = false;
@@ -1372,9 +1371,13 @@ function ambient(dt) {
 
 // ================================================================ loop
 renderKPIs(); renderList('cases');
-const QS = new URLSearchParams(location.search).get('q');
-if (QS) { const t = QS.toLowerCase(); const hit = CASES.find(c => c.company.toLowerCase().includes(t) || c.id.toLowerCase() === t); if (hit) currentCase = hit; }
-if (currentCase) { setClient(currentCase.company); setCaseState(currentCase.k.step); setStep(currentCase.k.step); q.value = currentCase.company; }
+// start blank: empty search, no case on the journey bar
+q.value = '';
+setPublished(false); drawRC('idle');
+[...stepsEl.querySelectorAll('.step')].forEach(el => { el.className = 'step'; el.querySelector('.dot').textContent = ''; });
+document.getElementById('prog').style.width = '0%';
+document.getElementById('j-title').textContent = 'Search a company to see its journey';
+document.getElementById('j-now').textContent = '';
 document.getElementById('caseBtn').onclick = () => { caseCardOpen = !caseCardOpen; showBrackets(null); showInfo(caseCardOpen ? CASE_INFO() : null); };
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); });
 addEventListener('keydown', e => { if (e.key === '/') { e.preventDefault(); document.getElementById('q').focus(); } });
