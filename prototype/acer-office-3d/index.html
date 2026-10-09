@@ -393,7 +393,8 @@ function person(opts = {}) {
   const suit = opts.suit && !female ? opts.suit : (female ? FEMALE_SUITS : MALE_SUITS)[v % 5];
   const shirt = SHIRTS[v % SHIRTS.length];
   const hairC = opts.hair || HAIRS[v % HAIRS.length];
-  const trousers = female ? skin : '#232a38';
+  const skirt = female && v % 2 === 0; // women alternate between a skirt suit and a trouser suit
+  const trousers = skirt ? '#b78a6c' : female ? suit : '#232a38';
   const g = group(x, 0, z, ry, parent); g.scale.setScalar(CH_S);
   const S = (geo, c, px, py, pz, par, o) => mesh(geo, c, px, py, pz, par, o);
   const J = (par, px, py, pz) => { const q = new THREE.Group(); q.position.set(px, py, pz); par.add(q); return q; };
@@ -408,7 +409,7 @@ function person(opts = {}) {
     S(RB(.13, .085, .27, .04), female ? '#3a2630' : '#171b22', 0, -.4, .045, knee);
     legs.push(hip); knees.push(knee);
   }
-  if (female) S(new THREE.CylinderGeometry(.2, .25, .4, 20), suit, 0, -.12, 0, hips);
+  if (skirt) S(new THREE.CylinderGeometry(.19, .23, .44, 20), suit, 0, -.14, 0, hips);
   else S(RB(.4, .14, .25, .06), trousers, 0, 0, 0, hips);
   // torso
   const torso = J(hips, 0, 0, 0);
@@ -426,24 +427,23 @@ function person(opts = {}) {
     const el = J(sh, 0, -.3, 0);
     S(new THREE.CapsuleGeometry(.062, .18, 4, 12), suit, 0, -.12, 0, el);
     S(new THREE.CylinderGeometry(.064, .064, .04, 12), shirt, 0, -.24, 0, el);
-    S(new THREE.SphereGeometry(.062, 12, 10), skin, 0, -.3, 0, el);
+    S(new THREE.SphereGeometry(.052, 12, 10), skin, 0, -.31, 0, el).scale.set(.8, 1.35, .6);
     sh.rotation.z = sd * .06;
     arms.push(sh); elbows.push(el);
   }
   // head
-  S(new THREE.CylinderGeometry(.06, .07, .1, 12), skin, 0, .58, 0, torso);
-  const head = J(torso, 0, .84, 0); head.scale.setScalar(1.3);
-  const hd = S(new THREE.SphereGeometry(.2, 28, 22), skin, 0, 0, 0, head); hd.scale.set(1, 1.04, .97);
+  S(new THREE.CylinderGeometry(.052, .062, .17, 12), skin, 0, .62, 0, torso);
+  const head = J(torso, 0, .8, 0); head.scale.setScalar(.66); // life-size head, not a cartoon one
+  const hd = S(new THREE.SphereGeometry(.2, 28, 22), skin, 0, 0, 0, head); hd.scale.set(.88, 1.12, .96);
+  S(new THREE.SphereGeometry(.15, 20, 14), skin, 0, -.08, .03, head).scale.set(.95, .8, .95); // jaw
   for (const sd of [-1, 1]) {
-    S(new THREE.SphereGeometry(.036, 14, 12), '#ffffff', sd * .072, .015, .17, head, { roughness: .4 }).scale.set(1, 1.25, .5);
-    const e = S(new THREE.SphereGeometry(.024, 12, 10), '#1d2128', sd * .072, .012, .186, head, { roughness: .3 }); e.scale.set(1, 1.3, .5);
-    S(new THREE.SphereGeometry(.008, 8, 6), '#ffffff', sd * .072 + .008, .03, .195, head, { emissive: '#ffffff', emissiveIntensity: .6 });
+    S(new THREE.SphereGeometry(.027, 14, 12), '#f4f1ec', sd * .068, .02, .168, head, { roughness: .4 }).scale.set(1.25, .8, .5);
+    const e = S(new THREE.SphereGeometry(.016, 12, 10), '#3a2a20', sd * .068, .02, .18, head, { roughness: .3 }); e.scale.set(1, 1, .5);
     const br = S(RB(.07, .016, .015, .006), hairC, sd * .075, .085, .18, head); br.rotation.z = -sd * .12;
     S(new THREE.SphereGeometry(.045, 10, 8), skin, sd * .197, 0, 0, head).scale.set(.55, 1, .9);
-    S(new THREE.CircleGeometry(.03, 14), '#f08c84', sd * .11, -.05, .172, head, { transparent: true, opacity: .35 });
   }
-  S(new THREE.SphereGeometry(.024, 10, 8), skin, 0, -.025, .198, head);
-  const mouth = S(new THREE.TorusGeometry(.04, .008, 6, 16, Math.PI), '#9c4a45', 0, -.07, .178, head); mouth.rotation.z = Math.PI;
+  S(new THREE.SphereGeometry(.022, 10, 8), skin, 0, -.035, .19, head).scale.set(.8, 1.3, 1.1);
+  const mouth = S(new THREE.TorusGeometry(.03, .006, 6, 16, Math.PI), '#a35d55', 0, -.09, .17, head); mouth.rotation.z = Math.PI;
   // hair styles
   const style = female ? ['bun', 'bob', 'long', 'bun', 'bob'][v % 5] : ['short', 'side', 'short', 'bald', 'side'][v % 5];
   if (style !== 'bald') { const cap = S(new THREE.SphereGeometry(.212, 26, 18, 0, Math.PI * 2, 0, Math.PI * .5), hairC, 0, .02, -.012, head); cap.rotation.x = -.32; }
@@ -581,13 +581,18 @@ const BACKDROP = [];
 
 // ================================================================ CLIENT SITE · the selected company
 const CLIENT_FIGS = [];
+const BD_LOOK = { meet: { suit: '#2e3b55', tie: C.teal, carry: C.teal, handOut: true }, walk: { tie: C.teal, carry: C.teal, variant: 0 }, hand: { tie: C.teal, handOut: true, variant: 0 } };
 const CLIENT = { x: -104, z: -18 };
 // car route from the client gate to the main road: south, east along the back street, south again (three turns)
 const ROUTE = [[CLIENT.x + 6, CLIENT.z + 11], [CLIENT.x + 6, 3], [-42, 3], [-42, ROAD_Z - 1.8]];
 let clientName = 'Client';
 const CLIENT_DYN = []; // [object, () => info] rebuilt whenever the selected company changes
 const dyn = (obj, fn) => { CLIENT_DYN.push([obj, fn]); return info(obj, fn()); };
-const bdName = () => currentCase?.deal?.owner || 'ACER BD';
+// BD = the deal's BD User in Zoho (blank or the admin account → shown as a man named "ACER BD")
+const WOMEN_BD = new Set(['hema mehra']);
+const bdOf = (c) => { const n = c?.deal?.bd; return n && !/super admin/i.test(n) ? n : null; };
+const bdName = () => bdOf(currentCase) || 'ACER BD';
+const bdFemale = () => WOMEN_BD.has((bdOf(currentCase) || '').toLowerCase());
 const initials = (n) => String(n || '').replace(/[^A-Za-z0-9 ]/g, ' ').split(/\s+/)
   .filter(w => w && !/^(private|pvt|limited|ltd|the|and|of|india)$/i.test(w)).slice(0, 3).map(w => w[0]).join('').toUpperCase() || 'CL';
 function fitTex(text, { w = 2048, h = 256, size = 130, color = '#2e4f9c' } = {}) {
@@ -629,11 +634,36 @@ let clientSign = null, clientRoof = null;
   // the meeting
   const client = person({ x: X - .8, z: Z + 5.4, ry: Math.PI * .35, suit: '#5b6680', hair: '#6b4a2b', tie: '#b08a5a', handOut: true });
   dyn(client, () => ({ kind: 'Client', icon: '🤝', title: clientName, sub: 'Client management', chip: ['In meeting', ''], rows: [['Meeting', 'Rating mandate discussion'], ['With', `${bdName()} (ACER BD)`], ['Instrument', currentCase?.instrument || '—']] }));
-  const bd0 = person({ x: X + .8, z: Z + 5.6, ry: -Math.PI * .4, suit: '#2e3b55', tie: C.teal, carry: C.teal, handOut: true });
+  const bd0 = person({ x: X + .8, z: Z + 5.6, ry: -Math.PI * .4, ...BD_LOOK.meet });
   dyn(bd0, () => BD_INFO('Client meeting', `Meeting ${clientName}`));
   const meetBubble = label('Very glad to meet you!', 'bubble', X - .8, 2.9, Z + 5.4);
   CLIENT_FIGS.push(client, bd0, meetBubble);
 })();
+/** Rebuild a character in place with a different look, keeping where it stands and what it is doing. */
+function respawn(old, opts) {
+  const p = person({ ...opts, x: old.position.x, z: old.position.z, ry: old.rotation.y, parent: old.parent });
+  p.position.y = old.position.y; p.visible = old.visible; p.userData.anim = old.userData.anim; p.userData.info = old.userData.info;
+  old.parent.remove(old); CHARS.splice(CHARS.indexOf(old), 1);
+  const ci = clickables.indexOf(old); if (ci >= 0) clickables[ci] = p;
+  for (const e of CLIENT_DYN) if (e[0] === old) e[0] = p;
+  return p;
+}
+let bdIsFemale = false;
+function setBD() {
+  const f = bdFemale();
+  if (f !== bdIsFemale) {
+    bdIsFemale = f;
+    const look = (k) => ({ ...BD_LOOK[k], female: f, variant: f ? 4 : 0 }); // variant 4 = navy skirt suit
+    CLIENT_FIGS[1] = respawn(CLIENT_FIGS[1], look('meet'));
+    walker = respawn(walker, look('walk'));
+    pubBD = respawn(pubBD, look('hand'));
+    insideLabels = null; // the office label list is rebuilt next frame
+  }
+  for (const p of [CLIENT_FIGS[1], walker, pubBD]) {
+    if (!p.userData.tag) p.userData.tag = label('', 'tag3', 0, 2.05, 0, p);
+    p.userData.tag.element.innerHTML = `<em>BD</em> ${bdName()}`;
+  }
+}
 /** Repaint the client campus for the selected company. */
 function setClient(name) {
   clientName = name || 'Client';
@@ -645,6 +675,7 @@ function setClient(name) {
   const m = document.querySelector('#menu [data-site="client"]');
   if (m) { m.querySelector('.tag').textContent = initials(clientName); m.querySelector('b').textContent = clientName; }
   STEPS[0].where = `${clientName} HQ`;
+  setBD();
 }
 
 function BD_INFO(stage, doing) {
@@ -919,7 +950,7 @@ model('sofa', 34.4, 2.2, { parent: office, ry: Math.PI, s: FURN * 1.2 });
 model('coffeeTable', 34.4, .7, { parent: office, s: FURN * 1.1 });
 cupboard(27.5, -1.2, Math.PI / 2, 2.0, 1.8, office, 10);
 plant(35.4, -3.2, .9, office);
-const pubBD = dyn(person({ x: 32.4, z: .2, ry: -Math.PI * .4, tie: C.teal, handOut: true, parent: office, variant: 0 }), () => BD_INFO('Published', 'Handing over the rating to the client'));
+let pubBD = dyn(person({ x: 32.4, z: .2, ry: -Math.PI * .4, ...BD_LOOK.hand, parent: office }), () => BD_INFO('Published', 'Handing over the rating to the client'));
 const pubClient = dyn(person({ x: 30.9, z: .5, ry: Math.PI * .35, tie: '#b08a5a', handOut: true, parent: office, variant: 3 }), () => ({ kind: 'Client', icon: '🤝', title: clientName, sub: 'Client management', chip: ['Rating received', ''], rows: [['Rating', currentCase?.k?.ratingVisible ? ratingText(currentCase) : '—'], ['Instrument', currentCase?.instrument || '—']] }));
 const pubBubble = label('Thank you, ACER!', 'bubble', 30.9, 3.6, .5, office);
 function setPublished(on) { pubBD.visible = pubClient.visible = on; pubBubble.userData.want = on; pubBubble.visible = on; drawPub(on); }
@@ -1208,7 +1239,7 @@ renderer.domElement.addEventListener('pointerup', e => {
 // ================================================================ replay: the real journey of the case
 // BD meets the client → drives to ACER → submits at Proposal + Compliance → robot carries the case
 // to the Rating Team → robot carries it to the Committee → vote → rating released → BD hands it to the client.
-const walker = person({ tie: C.teal, carry: C.teal, variant: 0 });
+let walker = person({ ...BD_LOOK.walk });
 walker.visible = false;
 dyn(walker, () => BD_INFO('Journey', `Carrying the ${clientName} case`));
 const hereAnchor = new THREE.Object3D(); scene.add(hereAnchor);
@@ -1326,6 +1357,7 @@ function walkLoop(w, dt) {
 function ambient(dt) {
   T += dt;
   LANE_WALKERS.forEach(w => walkLoop(w, dt));
+  for (const p of [CLIENT_FIGS[1], walker, pubBD]) if (p.userData.tag) { p.userData.tag.visible = p.visible; p.userData.tag.userData.want = p.visible; }
   if (destPad.visible) { const k = 1 + Math.sin(T * 4) * .12; destPad.scale.set(k, k, 1); }
   if (!replay && !window.__heroCar) { car.position.x = -70 + ((T * 6) % 100); car.position.z = CAR_Z; car.rotation.y = 0; }
   traffic[0].position.x = 40 - ((T * 6) % 110); traffic[1].position.x = -20 - ((T * 4.5 + 40) % 110) + 60;

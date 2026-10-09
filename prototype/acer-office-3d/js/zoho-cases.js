@@ -81,7 +81,7 @@ export async function loadCases(coql) {
       company: d['Account_Name.Account_Name'] || d.Account_Name?.name || m?.Company || d.Deal_Name,
       caseType: d.Type || e?.Entity_Type || 'Rating Process',
       instrument: [e?.Instrument_Name || m?.Instrument_Name, amount].filter(Boolean).join(' · '),
-      deal: { stage: d.Stage, owner: person('BD_User')(d) || person('Owner')(d) },
+      deal: { stage: d.Stage, owner: person('BD_User')(d) || person('Owner')(d), bd: person('BD_User')(d) },
       entity: e ? { status: e.Status, leadAnalyst: person('Lead_Analyst')(e) } : null,
       rc: rc ? { phase: rc.RC_Review_Phase, meetingDate: rc.Meeting_Date_Time } : null,
       rating: rating || null,
