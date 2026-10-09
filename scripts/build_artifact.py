@@ -33,7 +33,7 @@ glbManager.setURLModifier((u) => {
 const gltfLoader = new GLTFLoader(glbManager);""")
 (out / 'acer-office.html').write_text(page)
 
-for f in ['js/stages.js', 'js/zoho-cases.js']: shutil.copy(SRC / f, out / f)
+for f in ['js/stages.js', 'js/zoho-cases.js', 'js/zoho-login.js']: shutil.copy(SRC / f, out / f)
 for png in (SRC / 'assets').rglob('*.png'):
     d = out / png.relative_to(SRC); d.parent.mkdir(parents=True, exist_ok=True); shutil.copy(png, d)
 files = sorted(str(p.relative_to(out)) for p in out.rglob('*') if p.is_file() and p.name != 'acer-office.html')

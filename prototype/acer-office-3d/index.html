@@ -310,7 +310,7 @@ box(190, .14, 2.2, C.walk, -22, 0, ROAD_Z - 4.85, scene, .05);
 box(190, .14, 2.2, C.walk, -22, 0, ROAD_Z + 4.85, scene, .05);
 box(190, .1, 2.4, C.grass, -22, 0, ROAD_Z + 7.2, scene, .05);
 for (let x = -114; x < 72; x += 4.5) box(2.2, .05, .2, C.line, x, 0, ROAD_Z, scene, .02);
-for (const cx of [-74, 1.6]) for (let i = 0; i < 7; i++) box(.5, .06, 6.4, C.line, cx - 1.8 + i * .62, 0, ROAD_Z, scene, .02);
+for (const cx of [-90, 1.6]) for (let i = 0; i < 7; i++) box(.5, .06, 6.4, C.line, cx - 1.8 + i * .62, 0, ROAD_Z, scene, .02);
 // side road into the ACER car park
 box(7, .04, 6, C.road, 50, 0, 9.5, scene, .02);
 
@@ -329,7 +329,7 @@ function fence(x0, x1, z) {
   box(x1 - x0, .06, .05, '#c4ccd8', (x0 + x1) / 2, 1.0, z, scene, .02);
   box(x1 - x0, .06, .05, '#c4ccd8', (x0 + x1) / 2, .55, z, scene, .02);
 }
-for (const x of [-108, -96, -60, -48, -36, -24, -14, 58, 66]) tree(x, ROAD_Z - 7.6, .95);
+for (const x of [-108, -60, -48, -36, -24, -14, 58, 66]) tree(x, ROAD_Z - 7.6, .95);
 for (let x = -110; x < 68; x += 7) tree(x + (x % 2), ROAD_Z + 7.2, 1);
 for (const x of [-100, -80, -56, -32, -12, 12, 30, 48]) lamp(x, ROAD_Z - 5.4);
 fence(56, 70, ROAD_Z - 9);
@@ -542,7 +542,7 @@ const BACKDROP = [];
 
 // ================================================================ CLIENT SITE · ABC Infrastructure Ltd.
 const CLIENT_FIGS = [];
-const CLIENT = { x: -46, z: -2 };
+const CLIENT = { x: -84, z: -2 };
 (function clientSite() {
   const { x: X, z: Z } = CLIENT;
   box(22, .16, 18, '#eef2fa', X, 0, Z + 1, scene, .05);
@@ -597,7 +597,7 @@ function carModel({ x, z, ry = 0, color = '#ffffff', stripe = C.teal, parent = s
 const car = carModel({ x: -14, z: ROAD_Z - 1.8, color: '#ffffff', stripe: C.teal, kind: 'acer' });
 info(car, { kind: 'Vehicle', icon: '🚗', title: 'ACER pool car · MH-02 AC 4521', sub: 'Driver: Suresh · BD on board', chip: ['On the road', ''], rows: [['From', 'ABC Infrastructure (BKC)'], ['To', 'ACER Office'], ['ETA', '10:58 (12 min)'], ['Carrying', 'Signed fee proposal']] });
 const carTag = label('<em>CAR</em> BD → ACER Office', 'tag3', 0, 2.6, 0, car);
-const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e9eef4', stripe: '#2f5f9e', kind: 'acer' }), carModel({ x: -50, z: ROAD_Z + 1.8, ry: Math.PI, color: '#dfe6ee', stripe: '#3a4256', kind: 'acer' })];
+const traffic = [carModel({ x: 20, z: ROAD_Z + 1.8, ry: Math.PI, color: '#e9eef4', stripe: '#2f5f9e', kind: 'acer' }), carModel({ x: -40, z: ROAD_Z + 1.8, ry: Math.PI, color: '#dfe6ee', stripe: '#3a4256', kind: 'acer' })];
 
 // ================================================================ ACER OFFICE — small room cubes with wide robot lanes
 const A = { x0: -8, x1: 44, z0: -24, z1: 9 };
@@ -1001,18 +1001,41 @@ function renderKPIs() {
   document.getElementById('k-pub').textContent = CASES.filter(c => c.k.ed === 'Published').length;
   document.getElementById('k-att').textContent = ALL_CASES.reduce((n, c) => n + c.al.length, 0);
 }
-// search
+// search · typo-tolerant: "vivana" finds VIVIANA POWER TECH LIMITED
 const q = document.getElementById('q'), results = document.getElementById('results');
+const STOP = new Set(['private', 'pvt', 'limited', 'ltd', 'the']);
+const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w && !STOP.has(w));
+function lev(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// 2 = exact substring, 1 = every typed word prefix-matches or is a near-typo of a name word, 0 = no match
+function matchScore(name, typed) {
+  const tw = words(typed); if (!tw.length) return 1;
+  const nw = words(name);
+  if (nw.join(' ').includes(tw.join(' '))) return 2;
+  return tw.every(w => nw.some(n => n.startsWith(w) || lev(w, n) <= Math.max(1, Math.floor(w.length / 5)))) ? 1 : 0;
+}
+const searchCases = (t) => CASES.map(c => [matchScore(c.company, t), c]).filter(([s]) => s).sort((a, b) => b[0] - a[0]).map(([, c]) => c);
 function renderResults() {
-  const t = q.value.trim().toLowerCase();
-  const hits = CASES.filter(c => !t || c.company.toLowerCase().includes(t)).slice(0, 12);
-  results.innerHTML = hits.map(c => `<div data-id="${c.id}"><span>${c.company}</span><small>${viewMode === 'ED' ? c.k.ed : (c.k.cro || c.k.ed)}</small></div>`).join('') || '<div><small>No match</small></div>';
+  const hits = searchCases(q.value.trim()).slice(0, 12);
+  results.innerHTML = hits.map(c => `<div data-id="${c.id}"><span>${c.company}</span><small>${c.k.status}</small></div>`).join('') || `<div><small>${DATA ? 'No match in Zoho CRM' : 'No live data'}</small></div>`;
   results.classList.add('open');
   results.querySelectorAll('[data-id]').forEach(el => el.onmousedown = () => { selectCase(CASES.find(c => c.id === el.dataset.id)); results.classList.remove('open'); });
 }
 q.addEventListener('focus', renderResults); q.addEventListener('input', renderResults);
 q.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
-q.addEventListener('keydown', e => { if (e.key === 'Enter') { const t = q.value.trim().toLowerCase(); const c = CASES.find(x => x.company.toLowerCase().includes(t)); if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } } });
+q.addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  lastLive = 0; await refreshLive(); // Enter always re-reads Zoho so the status shown is current
+  const c = searchCases(q.value.trim())[0];
+  if (c) { selectCase(c); results.classList.remove('open'); q.blur(); } else renderResults();
+});
 const LIVE_HELP = {
   needs_login: 'Your Zoho session ended — sign in again to see live cases.',
   needs_reauth: 'Zoho CRM connection expired — reconnect it in claude.ai Settings → Connectors.',
@@ -1059,17 +1082,17 @@ q.addEventListener('focus', refreshLive);
 
 // ================================================================ camera views
 const VIEWS = {
-  all: [new THREE.Vector3(-34, 70, 96), new THREE.Vector3(-4, 4, -4)],
+  all: [new THREE.Vector3(-56, 92, 124), new THREE.Vector3(-22, 4, -4)],
   building: [new THREE.Vector3(-18, 42, 80), new THREE.Vector3(14, 3, -4)],
   acer: [new THREE.Vector3(2, 42, 38), new THREE.Vector3(17, 0, -9)],
-  client: [new THREE.Vector3(-74, 32, 44), new THREE.Vector3(-44, 4, -1)],
-  road: [new THREE.Vector3(-40, 22, 44), new THREE.Vector3(-18, 0, 14)],
+  client: [new THREE.Vector3(-112, 32, 44), new THREE.Vector3(-82, 4, -1)],
+  road: [new THREE.Vector3(-62, 24, 48), new THREE.Vector3(-38, 0, 14)],
   proposal: [new THREE.Vector3(-9, 16, 18), new THREE.Vector3(1, 0, -.5)],
   compliance: [new THREE.Vector3(-7, 17, -3), new THREE.Vector3(1, 0, -16.5)],
   rating: [new THREE.Vector3(6, 17, -3), new THREE.Vector3(16, 0, -16.5)],
   committee: [new THREE.Vector3(21, 17, -3), new THREE.Vector3(31, 0, -16.5)],
   published: [new THREE.Vector3(22, 15, 16), new THREE.Vector3(31.5, 0, -.5)],
-  hero: [new THREE.Vector3(-6, 150, 160), new THREE.Vector3(-6, 0, -4)],
+  hero: [new THREE.Vector3(-24, 160, 175), new THREE.Vector3(-24, 0, -4)],
 };
 const SITE_LABEL = { all: ['ALL', 'Network overview', 'Client site + ACER office'], building: ['ACER', 'ACER Office · Mumbai', 'Credit rating HQ'], acer: ['ACER', 'ACER Office · Mumbai', '5 rooms · 22 people · 4 live cases'], client: ['ABC', 'ABC Infrastructure Ltd.', 'Client HQ · BKC, Mumbai'], road: ['ROAD', 'On the road', 'BD driving to ACER'] };
 let fly = null;

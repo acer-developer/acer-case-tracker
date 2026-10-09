@@ -7,7 +7,7 @@
 const person = (p) => (f) => [f[`${p}.first_name`], f[`${p}.last_name`]].filter(Boolean).join(' ') || null;
 
 export const QUERIES = {
-  Deals: ['Deal_Name', 'Account_Name', 'Account_Name.Account_Name', 'Stage', 'Owner.first_name', 'Owner.last_name', 'BD_User.first_name', 'BD_User.last_name', 'Type', 'Instrument_Category', 'Issue_Size_in_Cr', 'Modified_Time'],
+  Deals: ['Deal_Name', 'Account_Name', 'Account_Name.Account_Name', 'Stage', 'Owner.first_name', 'Owner.last_name', 'BD_User.first_name', 'BD_User.last_name', 'Type', 'Issue_Size_in_Cr', 'Modified_Time'],
   Mandates: ['Company', 'Mandate_Stage', 'Deal_rec', 'Compliance_user.first_name', 'Compliance_user.last_name', 'Instrument_Name', 'Issue_Size', 'Modified_Time'],
   Entity: ['Status', 'Entity_Type', 'Lead_Analyst.first_name', 'Lead_Analyst.last_name', 'Mandate', 'Instrument_Name', 'Issue_Size', 'ACER_Final_Rating', 'Short_term_Rating', 'Long_term_Rating_Outlook_Watch', 'IPO_Rating', 'Modified_Time'],
   RC_Review: ['Entity', 'RC_Review_Phase', 'Meeting_Date_Time', 'RC_Category', 'Committee_Final_Rating', 'Committee_final_Short_term_Rating', 'Committee_final_Long_term_Outlook_Watch', 'Commitee_Final_IPO_Rating', 'Modified_Time'],
@@ -15,12 +15,34 @@ export const QUERIES = {
   CustomModule5001: ['Account_Name', 'Potential_Name', 'Status', 'Grand_Total', 'Balance', 'Due_Date', 'Invoice_Date'],
 };
 
+// Zoho's INVALID_QUERY names the offending column in details.column_name — in the payload, an Error message, or err.result
+const badColumn = (x) => {
+  const s = typeof x === 'string' ? x : JSON.stringify(x ?? '');
+  return /INVALID_QUERY/.test(s) ? s.match(/column_name\\?"?\s*[:=]\s*\\?"?([\w.$]+)/)?.[1] || null : null;
+};
+
 async function all(coql, module) {
-  const rows = [];
-  for (let offset = 0; offset < 20000; offset += 2000) {
-    const page = await coql(`select ${QUERIES[module].join(', ')} from ${module} where id is not null limit ${offset}, 2000`);
+  const cols = [...QUERIES[module]], rows = [];
+  for (let offset = 0; offset < 20000;) {
+    let page, bad;
+    try {
+      page = await coql(`select ${cols.join(', ')} from ${module} where id is not null limit ${offset}, 2000`);
+      if (!page?.data) bad = badColumn(page);
+    } catch (err) {
+      bad = badColumn(err?.message) || badColumn(err?.result);
+      if (!bad) throw err;
+    }
+    if (bad) {
+      // a renamed/removed field: drop it and retry this page rather than losing the whole module
+      const i = cols.indexOf(bad);
+      if (i < 0 || cols.length === 1) throw new Error(`Zoho rejected ${module}.${bad}`);
+      console.warn(`Zoho ${module}: dropping unknown field ${bad}`);
+      cols.splice(i, 1);
+      continue;
+    }
     rows.push(...(page?.data || []));
     if (!page?.info?.more_records) break;
+    offset += 2000;
   }
   return rows;
 }
@@ -56,9 +78,9 @@ export async function loadCases(coql) {
     const amount = d.Issue_Size_in_Cr ? `₹${d.Issue_Size_in_Cr} Cr` : (m?.Issue_Size || e?.Issue_Size || '');
     const c = {
       id: d.id,
-      company: d['Account_Name.Account_Name'] || m?.Company || d.Deal_Name,
+      company: d['Account_Name.Account_Name'] || d.Account_Name?.name || m?.Company || d.Deal_Name,
       caseType: d.Type || e?.Entity_Type || 'Rating Process',
-      instrument: [e?.Instrument_Name || m?.Instrument_Name || d.Instrument_Category, amount].filter(Boolean).join(' · '),
+      instrument: [e?.Instrument_Name || m?.Instrument_Name, amount].filter(Boolean).join(' · '),
       deal: { stage: d.Stage, owner: person('BD_User')(d) || person('Owner')(d) },
       entity: e ? { status: e.Status, leadAnalyst: person('Lead_Analyst')(e) } : null,
       rc: rc ? { phase: rc.RC_Review_Phase, meetingDate: rc.Meeting_Date_Time } : null,
